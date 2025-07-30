@@ -1,27 +1,19 @@
-# Core dependencies
-opencv-python==4.8.1.78
-numpy==1.24.3
-pygame==2.5.2
-PyAudio==0.2.11
-
-# AI and Speech
-openai==1.3.5
+# Core dependencies for Raspberry Pi - tested and working
+groq==0.9.0
+edge-tts==6.1.7
 speechrecognition==3.10.0
 pyttsx3==2.90
-whisper==1.1.10
-
-# Audio processing
-librosa==0.10.1
-soundfile==0.12.1
+pygame==2.5.2
+pyaudio==0.2.11
 
 # System utilities
 python-dotenv==1.0.0
 requests==2.31.0
 pillow==10.0.1
 
-# GPIO for Pi (optional hardware controls)
-RPi.GPIO==0.7.1
+# Audio processing (simplified for Pi)
+soundfile==0.13.1
 
-# Development
-black==23.9.1
-pytest==7.4.2 
+# Note: Install these via system packages instead of pip:
+# sudo apt install python3-opencv python3-numpy python3-pyaudio
+# Then create virtual environment with: python3 -m venv --system-site-packages venv 

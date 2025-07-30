@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# OpenAI Configuration
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-OPENAI_MODEL = 'gpt-3.5-turbo'  # or 'gpt-4' for better responses
+# AI Configuration - Using Groq (free alternative to OpenAI)
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+GROQ_MODEL = 'llama3-8b-8192'  # Fast, capable model
 
 # Audio Configuration
 SAMPLE_RATE = 44100
@@ -18,15 +18,17 @@ CHANNELS = 1  # Mono
 RECOGNITION_TIMEOUT = 5  # seconds
 RECOGNITION_PHRASE_TIMEOUT = 1  # seconds
 
-# Text-to-Speech
-TTS_RATE = 150  # words per minute
-TTS_VOICE_INDEX = 1  # Female voice (adjust based on available voices)
+# Text-to-Speech Configuration
+TTS_RATE = 130  # words per minute (slower for more dramatic effect)
+TTS_VOICE_INDEX = 1  # Fallback for pyttsx3
+USE_EDGE_TTS = True  # Use Microsoft Edge TTS for better voice quality
+EDGE_TTS_VOICE = "en-US-AriaNeural"  # Expressive female voice
 
-# Display Configuration
-PROJECTOR_WIDTH = 1920
-PROJECTOR_HEIGHT = 1080
-FULLSCREEN = True
-FACE_SCALE = 1.0  # Adjust to fit head form
+# Display Configuration - SAFER DEFAULTS FOR TESTING
+PROJECTOR_WIDTH = 1280   # Windowed mode for testing
+PROJECTOR_HEIGHT = 720
+FULLSCREEN = False       # IMPORTANT: Windowed mode so you can close it!
+FACE_SCALE = 0.8         # Slightly smaller for monitor testing
 
 # Animation Configuration
 FPS = 30
@@ -39,7 +41,8 @@ You speak in a mysterious, theatrical manner with a slight old-world accent.
 You're wise, slightly spooky, but ultimately helpful. 
 You enjoy dramatic pauses and cryptic language.
 Keep responses conversational and under 3 sentences for better lip sync.
-Always stay in character as a fortune teller who can see into the future and past."""
+Always stay in character as a fortune teller who can see into the future and past.
+Use mystical language like 'mortal', 'seeker', 'the spirits whisper', etc."""
 
 # File Paths
 FACE_ASSETS_DIR = "assets/faces"
@@ -55,4 +58,10 @@ SPEAKER_ENABLE_PIN = 16
 DEBUG_MODE = True
 LOG_LEVEL = "INFO"
 SHOW_FPS = True
-SAVE_AUDIO_CACHE = True 
+SAVE_AUDIO_CACHE = True
+
+# Production Settings (change these when ready for projector use)
+# FULLSCREEN = True
+# PROJECTOR_WIDTH = 1920
+# PROJECTOR_HEIGHT = 1080
+# FACE_SCALE = 1.0 
