@@ -19,10 +19,17 @@ RECOGNITION_TIMEOUT = 5  # seconds
 RECOGNITION_PHRASE_TIMEOUT = 1  # seconds
 
 # Text-to-Speech Configuration
-TTS_RATE = 130  # words per minute (slower for more dramatic effect)
+TTS_RATE = 110  # words per minute (slower for more dramatic, mystical effect)
 TTS_VOICE_INDEX = 1  # Fallback for pyttsx3
 USE_EDGE_TTS = True  # Use Microsoft Edge TTS for better voice quality
-EDGE_TTS_VOICE = "en-US-AriaNeural"  # Expressive female voice
+
+# 🔮 MYSTICAL VOICE OPTIONS - Choose one:
+EDGE_TTS_VOICE = "en-GB-SoniaNeural"     # British, sophisticated, mysterious
+# EDGE_TTS_VOICE = "en-US-JennyNeural"   # Very expressive and dramatic
+# EDGE_TTS_VOICE = "en-US-SaraNeural"    # Mature, deep, mystical
+# EDGE_TTS_VOICE = "en-GB-LibbyNeural"   # British, theatrical
+# EDGE_TTS_VOICE = "en-AU-NatashaNeural" # Australian, unique accent
+# EDGE_TTS_VOICE = "en-US-AriaNeural"    # Original - expressive female
 
 # Display Configuration - SAFER DEFAULTS FOR TESTING
 PROJECTOR_WIDTH = 1280   # Windowed mode for testing
