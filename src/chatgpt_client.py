@@ -1,45 +1,45 @@
 """
 ChatGPT Client for Madame Leota
-Handles OpenAI API communication
+Handles Groq AI API communication (free alternative to OpenAI)
 """
 
 import asyncio
 import logging
 from typing import Optional
-import openai
-from config import OPENAI_API_KEY, OPENAI_MODEL, LEOTA_PERSONALITY
+from groq import AsyncGroq
+from config import GROQ_API_KEY, GROQ_MODEL, LEOTA_PERSONALITY
 
 class ChatGPTClient:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
+        self.client = AsyncGroq(api_key=GROQ_API_KEY)
         self.conversation_history = [
             {"role": "system", "content": LEOTA_PERSONALITY}
         ]
         
     async def test_connection(self):
-        """Test the OpenAI API connection"""
+        """Test the Groq API connection"""
         try:
             response = await self.client.chat.completions.create(
-                model=OPENAI_MODEL,
+                model=GROQ_MODEL,
                 messages=[{"role": "user", "content": "Test connection"}],
                 max_tokens=10
             )
-            self.logger.info("OpenAI API connection successful")
+            self.logger.info("Groq API connection successful")
             return True
         except Exception as e:
-            self.logger.error(f"OpenAI API connection failed: {e}")
+            self.logger.error(f"Groq API connection failed: {e}")
             raise
     
     async def get_response(self, user_input: str) -> Optional[str]:
-        """Get a response from ChatGPT in character as Madame Leota"""
+        """Get a response from Groq AI in character as Madame Leota"""
         try:
             # Add user message to conversation history
             self.conversation_history.append({"role": "user", "content": user_input})
             
-            # Get response from OpenAI
+            # Get response from Groq
             response = await self.client.chat.completions.create(
-                model=OPENAI_MODEL,
+                model=GROQ_MODEL,
                 messages=self.conversation_history,
                 max_tokens=150,  # Keep responses relatively short for better lip sync
                 temperature=0.8,  # Add some personality variation
@@ -61,7 +61,7 @@ class ChatGPTClient:
             return ai_response
             
         except Exception as e:
-            self.logger.error(f"Error getting ChatGPT response: {e}")
+            self.logger.error(f"Error getting Groq response: {e}")
             return None
     
     def reset_conversation(self):
