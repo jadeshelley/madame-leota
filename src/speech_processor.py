@@ -12,6 +12,9 @@ from typing import List, Tuple, Optional
 import io
 import wave
 import threading
+import edge_tts
+import tempfile
+import os
 from config import *
 
 class SpeechProcessor:
@@ -24,8 +27,12 @@ class SpeechProcessor:
         self.microphone = sr.Microphone()
         
         # Initialize text-to-speech
-        self.tts_engine = pyttsx3.init()
-        self._setup_tts()
+        if USE_EDGE_TTS:
+            self.logger.info(f"Using Edge TTS with voice: {EDGE_TTS_VOICE}")
+            self.tts_engine = None  # Edge TTS doesn't need initialization
+        else:
+            self.tts_engine = pyttsx3.init()
+            self._setup_tts()
         
         # Phoneme mapping for lip sync
         self.phoneme_map = self._create_phoneme_map()
@@ -34,7 +41,7 @@ class SpeechProcessor:
         self._calibrate_microphone()
     
     def _setup_tts(self):
-        """Configure the TTS engine"""
+        """Configure the pyttsx3 TTS engine (fallback)"""
         try:
             voices = self.tts_engine.getProperty('voices')
             if voices and len(voices) > TTS_VOICE_INDEX:
@@ -101,51 +108,31 @@ class SpeechProcessor:
             'Y': 'mouth_narrow',    # y
             'Z': 'mouth_narrow',    # z
             'ZH': 'mouth_narrow',   # zh
-            
-            # Silence
-            'SIL': 'mouth_closed',
-            'sp': 'mouth_closed'
         }
     
-    async def listen_for_speech(self) -> Optional[str]:
-        """Listen for user speech and convert to text"""
+    async def listen_for_speech(self, timeout: int = RECOGNITION_TIMEOUT) -> Optional[str]:
+        """Listen for speech and convert to text"""
         try:
             self.logger.debug("Listening for speech...")
             
-            # Use asyncio to run the blocking operation in a thread
-            loop = asyncio.get_event_loop()
-            text = await loop.run_in_executor(None, self._recognize_speech)
-            
-            if text:
-                self.logger.info(f"Recognized: {text}")
-                return text.lower().strip()
-            
-            return None
-            
-        except Exception as e:
-            self.logger.error(f"Speech recognition error: {e}")
-            return None
-    
-    def _recognize_speech(self) -> Optional[str]:
-        """Blocking speech recognition"""
-        try:
+            # Listen for audio
             with self.microphone as source:
-                # Listen for audio
                 audio = self.recognizer.listen(
                     source, 
-                    timeout=RECOGNITION_TIMEOUT,
+                    timeout=timeout, 
                     phrase_time_limit=RECOGNITION_PHRASE_TIMEOUT
                 )
             
-            # Recognize speech using Google's service
+            # Recognize speech using Google's free service
             text = self.recognizer.recognize_google(audio)
+            self.logger.debug(f"Recognized speech: {text}")
             return text
             
         except sr.WaitTimeoutError:
-            self.logger.debug("No speech detected (timeout)")
+            self.logger.debug("No speech detected within timeout")
             return None
         except sr.UnknownValueError:
-            self.logger.debug("Could not understand audio")
+            self.logger.debug("Could not understand speech")
             return None
         except sr.RequestError as e:
             self.logger.error(f"Speech recognition service error: {e}")
@@ -167,17 +154,52 @@ class SpeechProcessor:
             return b'', []
     
     async def _generate_audio(self, text: str) -> bytes:
-        """Generate audio data from text"""
+        """Generate audio data from text using Edge TTS or pyttsx3"""
         try:
-            # Create a temporary file in memory
-            audio_buffer = io.BytesIO()
+            if USE_EDGE_TTS:
+                return await self._generate_edge_tts_audio(text)
+            else:
+                return await self._generate_pyttsx3_audio(text)
+                
+        except Exception as e:
+            self.logger.error(f"Audio generation error: {e}")
+            return b''
+    
+    async def _generate_edge_tts_audio(self, text: str) -> bytes:
+        """Generate audio using Edge TTS (high quality)"""
+        try:
+            # Create temporary file for audio
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+                tmp_filename = tmp_file.name
             
-            # Configure TTS to save to buffer
+            # Generate speech using Edge TTS
+            communicate = edge_tts.Communicate(text, EDGE_TTS_VOICE)
+            await communicate.save(tmp_filename)
+            
+            # Read the generated audio file
+            with open(tmp_filename, 'rb') as f:
+                audio_data = f.read()
+            
+            # Clean up temporary file
+            os.unlink(tmp_filename)
+            
+            self.logger.debug(f"Generated Edge TTS audio: {len(audio_data)} bytes")
+            return audio_data
+            
+        except Exception as e:
+            self.logger.error(f"Edge TTS generation failed: {e}")
+            # Fallback to pyttsx3
+            return await self._generate_pyttsx3_audio(text)
+    
+    async def _generate_pyttsx3_audio(self, text: str) -> bytes:
+        """Generate audio using pyttsx3 (fallback)"""
+        try:
+            # Create temporary file
             temp_file = f"{AUDIO_CACHE_DIR}/temp_speech.wav"
             
             # Run TTS in thread to avoid blocking
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, self._save_tts_audio, text, temp_file)
+            await loop.run_in_executor(None, self._save_pyttsx3_audio, text, temp_file)
             
             # Read the audio file
             with open(temp_file, 'rb') as f:
@@ -186,11 +208,11 @@ class SpeechProcessor:
             return audio_data
             
         except Exception as e:
-            self.logger.error(f"Audio generation error: {e}")
+            self.logger.error(f"pyttsx3 generation failed: {e}")
             return b''
     
-    def _save_tts_audio(self, text: str, filename: str):
-        """Save TTS audio to file (blocking operation)"""
+    def _save_pyttsx3_audio(self, text: str, filename: str):
+        """Save pyttsx3 audio to file (blocking operation)"""
         self.tts_engine.save_to_file(text, filename)
         self.tts_engine.runAndWait()
     
@@ -220,29 +242,17 @@ class SpeechProcessor:
                     'mouth_shape': mouth_shape
                 })
                 current_time += phoneme_duration
-            
-            # Add brief pause between words
-            phonemes.append({
-                'phoneme': 'SIL',
-                'start_time': current_time,
-                'duration': phoneme_duration * 0.2,
-                'mouth_shape': 'mouth_closed'
-            })
-            current_time += phoneme_duration * 0.2
         
         return phonemes
     
     def _word_to_phonemes(self, word: str) -> List[str]:
-        """Convert word to phonemes (very simplified)"""
-        # This is a very basic approximation
-        # In a real implementation, you'd use a proper phoneme dictionary
+        """Convert word to basic phonemes (very simplified)"""
+        # This is a very basic implementation
+        # In a real system, you'd use a proper phoneme dictionary
         phonemes = []
         
-        vowels = 'aeiou'
-        consonants = 'bcdfghjklmnpqrstvwxyz'
-        
         for char in word.lower():
-            if char in vowels:
+            if char in 'aeiou':
                 if char == 'a':
                     phonemes.append('AE')
                 elif char == 'e':
@@ -253,7 +263,14 @@ class SpeechProcessor:
                     phonemes.append('AO')
                 elif char == 'u':
                     phonemes.append('UH')
-            elif char in consonants:
-                phonemes.append(char.upper())
+            elif char.isalpha():
+                # Map consonants to phonemes
+                phoneme_map = {
+                    'b': 'B', 'c': 'K', 'd': 'D', 'f': 'F', 'g': 'G',
+                    'h': 'HH', 'j': 'JH', 'k': 'K', 'l': 'L', 'm': 'M',
+                    'n': 'N', 'p': 'P', 'r': 'R', 's': 'S', 't': 'T',
+                    'v': 'V', 'w': 'W', 'y': 'Y', 'z': 'Z'
+                }
+                phonemes.append(phoneme_map.get(char, 'T'))
         
-        return phonemes if phonemes else ['SIL'] 
+        return phonemes if phonemes else ['T']  # Default phoneme 
