@@ -52,6 +52,11 @@ USE_REALTIME_FACE_MANIPULATION = False  # Set to True when dlib is working
 FACE_MANIPULATION_QUALITY = "medium"    # low, medium, high (affects Pi performance)
 MOUTH_BLEND_SMOOTHNESS = 0.8            # 0.0 to 1.0 - smoothness of mouth blending
 
+# AI Wav2Lip Integration (HIGHEST QUALITY!)
+USE_WAV2LIP = True                      # Use AI-powered Wav2Lip for professional lip sync
+WAV2LIP_QUALITY = "high"                # low, medium, high - model quality vs performance
+WAV2LIP_BATCH_SIZE = 1                  # Frames processed per batch (1 for real-time)
+
 # Audio-Driven Deepfake-Like Manipulation (MOST REALISTIC!)
 USE_AUDIO_DRIVEN_FACE = True            # Analyzes audio waveform for realistic lip sync
 AUDIO_ANALYSIS_QUALITY = "high"         # low, medium, high - affects realism vs performance

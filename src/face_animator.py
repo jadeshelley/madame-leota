@@ -25,6 +25,20 @@ if USE_REALTIME_FACE_MANIPULATION:
 else:
     REALTIME_AVAILABLE = False
 
+# Import Wav2Lip AI system if enabled
+if USE_WAV2LIP:
+    try:
+        logging.info("Attempting to import Wav2Lip AI...")
+        from .wav2lip_animator import get_wav2lip_animator
+        WAV2LIP_AVAILABLE = True
+        logging.info("✅ Wav2Lip AI imported successfully!")
+    except ImportError as e:
+        logging.warning(f"❌ Wav2Lip AI not available: {e}")
+        WAV2LIP_AVAILABLE = False
+else:
+    logging.info("USE_WAV2LIP is False in config")
+    WAV2LIP_AVAILABLE = False
+
 # Import audio-driven face system if enabled
 if USE_AUDIO_DRIVEN_FACE:
     try:
@@ -54,33 +68,47 @@ class FaceAnimator:
         self.idle_animation_running = False
         
         # Initialize different animation systems based on config
+        self.wav2lip_animator = None
         self.dlib_face_animator = None
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize dlib facial landmarks first (most accurate)
-        try:
-            print("🔍 DEBUG: Attempting to import dlib system...")
-            from src.dlib_face_animator import DlibFaceAnimator
-            print("✅ DEBUG: dlib import successful, creating instance...")
-            self.dlib_face_animator = DlibFaceAnimator()
-            print("✅ DLIB: Facial landmark system initialized")
-            self.logger.info("✅ dlib facial landmark system initialized")
-        except ImportError as ie:
-            print(f"⚠️ DLIB: Import failed - {ie}")
-            print("⚠️ DLIB: Likely missing dlib package - run: pip install dlib")
-            self.logger.warning(f"dlib import failed: {ie}")
-            self.dlib_face_animator = None
-        except Exception as e:
-            print(f"⚠️ DLIB: Failed to initialize dlib system: {e}")
-            print(f"⚠️ DLIB: Error type: {type(e).__name__}")
-            import traceback
-            print(f"⚠️ DLIB: Traceback: {traceback.format_exc()}")
-            self.logger.warning(f"Could not initialize dlib system: {e}")
-            self.dlib_face_animator = None
+        # Try to initialize Wav2Lip AI first (highest quality)
+        if USE_WAV2LIP and WAV2LIP_AVAILABLE:
+            try:
+                print("🤖 DEBUG: Attempting to initialize Wav2Lip AI...")
+                self.wav2lip_animator = get_wav2lip_animator()
+                print("✅ WAV2LIP: AI lip sync system initialized")
+                self.logger.info("✅ Wav2Lip AI system initialized")
+            except Exception as e:
+                print(f"⚠️ WAV2LIP: Failed to initialize: {e}")
+                self.logger.warning(f"Wav2Lip initialization failed: {e}")
+                self.wav2lip_animator = None
         
-        # Fallback to audio-driven system
-        if not self.dlib_face_animator:
+        # Fallback to dlib facial landmarks if Wav2Lip not available
+        if not self.wav2lip_animator:
+            try:
+                print("🔍 DEBUG: Attempting to import dlib system...")
+                from src.dlib_face_animator import DlibFaceAnimator
+                print("✅ DEBUG: dlib import successful, creating instance...")
+                self.dlib_face_animator = DlibFaceAnimator()
+                print("✅ DLIB: Facial landmark system initialized")
+                self.logger.info("✅ dlib facial landmark system initialized")
+            except ImportError as ie:
+                print(f"⚠️ DLIB: Import failed - {ie}")
+                print("⚠️ DLIB: Likely missing dlib package - run: pip install dlib")
+                self.logger.warning(f"dlib import failed: {ie}")
+                self.dlib_face_animator = None
+            except Exception as e:
+                print(f"⚠️ DLIB: Failed to initialize dlib system: {e}")
+                print(f"⚠️ DLIB: Error type: {type(e).__name__}")
+                import traceback
+                print(f"⚠️ DLIB: Traceback: {traceback.format_exc()}")
+                self.logger.warning(f"Could not initialize dlib system: {e}")
+                self.dlib_face_animator = None
+        
+        # Final fallback to audio-driven system
+        if not self.wav2lip_animator and not self.dlib_face_animator:
             if USE_AUDIO_DRIVEN_FACE:
                 try:
                     from src.audio_driven_face import AudioDrivenFace
@@ -97,8 +125,8 @@ class FaceAnimator:
         # Load face assets
         self._load_face_assets()
         
-        print(f"🎬 ANIMATOR: Animation system ready - dlib: {self.dlib_face_animator is not None}, audio-driven: {self.audio_driven_face is not None}")
-        self.logger.info(f"Face animator initialized with systems - dlib: {self.dlib_face_animator is not None}, audio-driven: {self.audio_driven_face is not None}")
+        print(f"🎬 ANIMATOR: Animation system ready - wav2lip: {self.wav2lip_animator is not None}, dlib: {self.dlib_face_animator is not None}, audio-driven: {self.audio_driven_face is not None}")
+        self.logger.info(f"Face animator initialized with systems - wav2lip: {self.wav2lip_animator is not None}, dlib: {self.dlib_face_animator is not None}, audio-driven: {self.audio_driven_face is not None}")
         
         # Animation timing
         self.animation_start_time = 0
@@ -379,17 +407,146 @@ class FaceAnimator:
             self.is_speaking = False
     
     async def animate_speaking_with_audio(self, audio_data: bytes, phonemes: List[dict]):
-        """Animate speaking using audio-driven face manipulation for deepfake-like results"""
+        """Animate speaking using best available system: Wav2Lip AI > dlib > audio-driven > phonemes"""
         try:
             self.logger.info("animate_speaking_with_audio called")
             
-            if not self.audio_driven_face:
-                self.logger.warning("No audio_driven_face available, falling back to phoneme animation")
-                await self.animate_speaking(phonemes)
+            # Try Wav2Lip AI first (highest quality)
+            if self.wav2lip_animator:
+                self.logger.info(f"Using Wav2Lip AI with {len(audio_data)} bytes of audio")
+                await self._animate_with_wav2lip(audio_data, phonemes)
                 return
             
-            self.logger.info(f"Using audio-driven face manipulation with {len(audio_data)} bytes of audio")
+            # Fallback to dlib system
+            elif self.dlib_face_animator:
+                self.logger.info(f"Using dlib system with {len(audio_data)} bytes of audio")
+                await self._animate_with_dlib(audio_data, phonemes)
+                return
+                
+            # Fallback to audio-driven system
+            elif self.audio_driven_face:
+                self.logger.info(f"Using audio-driven face manipulation with {len(audio_data)} bytes of audio")
+                await self._animate_with_audio_driven(audio_data, phonemes)
+                return
             
+            # Final fallback to phoneme animation
+            else:
+                self.logger.warning("No advanced animation systems available, falling back to phoneme animation")
+                await self.animate_speaking(phonemes)
+                return
+        except Exception as e:
+            self.logger.error(f"Speaking animation error: {e}")
+            self.is_speaking = False
+    
+    async def _animate_with_wav2lip(self, audio_data: bytes, phonemes: List[dict]):
+        """Animate using Wav2Lip AI"""
+        try:
+            # Initialize Wav2Lip models if needed
+            if not await self.wav2lip_animator.initialize():
+                self.logger.error("Failed to initialize Wav2Lip models")
+                await self._animate_with_dlib(audio_data, phonemes)
+                return
+            
+            # Load base face if not already loaded
+            base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
+            if not self.wav2lip_animator.load_base_face(str(base_face_path)):
+                self.logger.error("Failed to load base face for Wav2Lip")
+                await self._animate_with_dlib(audio_data, phonemes)
+                return
+            
+            self.is_speaking = True
+            self.current_state = "speaking"
+            
+            # Calculate frame timing
+            total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
+            frame_rate = 25  # Wav2Lip works well at 25 FPS
+            frame_duration = 1.0 / frame_rate
+            total_frames = int(total_duration * frame_rate)
+            
+            self.logger.info(f"Wav2Lip animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
+            
+            # Convert audio to numpy array
+            import numpy as np
+            audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+            samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
+            
+            # Animation loop
+            for frame in range(total_frames):
+                start_idx = frame * samples_per_frame
+                end_idx = min(start_idx + samples_per_frame, len(audio_array))
+                audio_chunk = audio_array[start_idx:end_idx]
+                
+                # Generate lip-synced frame
+                lip_sync_frame = await self.wav2lip_animator.generate_lip_sync_frame(audio_chunk)
+                
+                if lip_sync_frame is not None:
+                    # Clear screen and display
+                    self.display_manager.clear_screen()
+                    self.display_manager.display_image(lip_sync_frame, (0, 0))
+                    self.display_manager.update_display()
+                    
+                    print(f"✅ WAV2LIP: Frame {frame} displayed successfully")
+                
+                # Control frame rate
+                await asyncio.sleep(frame_duration)
+                
+        except Exception as e:
+            self.logger.error(f"Wav2Lip animation error: {e}")
+            # Fallback to dlib
+            await self._animate_with_dlib(audio_data, phonemes)
+        finally:
+            self.is_speaking = False
+    
+    async def _animate_with_dlib(self, audio_data: bytes, phonemes: List[dict]):
+        """Animate using dlib facial landmarks"""
+        try:
+            if not self.dlib_face_animator:
+                await self._animate_with_audio_driven(audio_data, phonemes)
+                return
+                
+            self.is_speaking = True
+            self.current_state = "speaking"
+            
+            # Calculate frame timing
+            total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
+            frame_rate = 15
+            frame_duration = 1.0 / frame_rate
+            total_frames = int(total_duration * frame_rate)
+            
+            # Convert audio for dlib processing
+            audio_array = self.dlib_face_animator._bytes_to_audio_array(audio_data)
+            samples_per_frame = max(512, len(audio_array) // total_frames if total_frames > 0 else len(audio_array))
+            
+            self.logger.info(f"dlib animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
+            
+            # Animation loop - use existing dlib logic
+            for frame in range(total_frames):
+                start_idx = frame * samples_per_frame
+                end_idx = min(start_idx + samples_per_frame, len(audio_array))
+                audio_chunk = audio_array[start_idx:end_idx]
+                
+                # Generate face using dlib
+                face = self.dlib_face_animator.generate_face_for_audio_chunk(audio_chunk)
+                
+                if face is not None:
+                    # Use existing display logic from original code
+                    self._display_dlib_face(face, frame)
+                
+                await asyncio.sleep(frame_duration)
+                
+        except Exception as e:
+            self.logger.error(f"dlib animation error: {e}")
+            await self._animate_with_audio_driven(audio_data, phonemes)
+        finally:
+            self.is_speaking = False
+    
+    async def _animate_with_audio_driven(self, audio_data: bytes, phonemes: List[dict]):
+        """Animate using original audio-driven system"""
+        try:
+            if not self.audio_driven_face:
+                await self.animate_speaking(phonemes)
+                return
+                
             self.is_speaking = True
             self.current_state = "speaking"
             
