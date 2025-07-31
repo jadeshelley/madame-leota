@@ -151,21 +151,21 @@ class DlibFaceAnimator:
             # Apply deformations based on audio
             
             # 1. Jaw drop (move bottom lip down)
-            jaw_drop = amplitude * 30  # More dramatic movement
+            jaw_drop = amplitude * 60  # Much more dramatic movement
             bottom_lip_indices = [15, 16, 17, 18, 19]  # Bottom lip in mouth landmarks
             for i in bottom_lip_indices:
                 if i < len(new_mouth_points):
                     new_mouth_points[i][1] += jaw_drop
             
             # 2. Lip width (squeeze/stretch horizontally)
-            width_factor = 0.8 + (frequency * 0.4)  # 0.8 to 1.2 range
+            width_factor = 0.7 + (frequency * 0.8)  # 0.7 to 1.5 range - much more dramatic
             for i, point in enumerate(new_mouth_points):
                 # Move points horizontally relative to center
                 dx = (point[0] - mouth_center[0]) * (width_factor - 1.0)
                 new_mouth_points[i][0] += dx
             
             # 3. Lip height (vertical scaling)
-            height_factor = 0.9 + (amplitude * 0.3)  # 0.9 to 1.2 range
+            height_factor = 0.8 + (amplitude * 0.6)  # 0.8 to 1.4 range - much more dramatic
             for i, point in enumerate(new_mouth_points):
                 # Move points vertically relative to center
                 dy = (point[1] - mouth_center[1]) * (height_factor - 1.0)
@@ -223,8 +223,8 @@ class DlibFaceAnimator:
                 if warped_region is not None and warped_region.shape == mouth_region.shape:
                     # Check if warped region has valid data (not all black)
                     if np.mean(warped_region) > 10:  # Not mostly black
-                        # Blend back into original face with soft blending
-                        alpha = 0.7  # Reduce intensity to make warping less aggressive
+                        # Blend back into original face with strong blending
+                        alpha = 0.9  # Higher intensity for more visible mouth movements
                         blended_region = cv2.addWeighted(mouth_region, 1-alpha, warped_region, alpha, 0)
                         result[y:y+h, x:x+w] = blended_region
                     else:
@@ -257,8 +257,8 @@ class DlibFaceAnimator:
             
             if src_scale > 0:
                 scale_factor = dst_scale / src_scale
-                # Limit scale factor to prevent corruption
-                scale_factor = np.clip(scale_factor, 0.8, 1.2)
+                # Limit scale factor to prevent corruption (wider range for more dramatic movement)
+                scale_factor = np.clip(scale_factor, 0.6, 1.8)
                 
                 # Apply gentle scaling around mouth center
                 h, w = img.shape[:2]
@@ -294,7 +294,7 @@ class DlibFaceAnimator:
             return 0.0
         
         rms = np.sqrt(np.mean(audio_array ** 2))
-        return np.clip(rms * 2.0, 0.0, 1.0)  # Scale and clip
+        return np.clip(rms * 4.0, 0.0, 1.0)  # Scale and clip - much more sensitive
     
     def _analyze_frequency(self, audio_array: np.ndarray) -> float:
         """Simple frequency analysis"""
