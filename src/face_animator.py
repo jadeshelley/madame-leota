@@ -368,6 +368,39 @@ class FaceAnimator:
             # Fallback to regular animation
             await self.animate_speaking(phonemes)
     
+    async def _generate_face_for_chunk(self, audio_chunk: np.ndarray, duration: float) -> np.ndarray:
+        """Generate face for a single audio chunk"""
+        try:
+            if self.audio_driven_face.base_face is None:
+                return self.audio_driven_face.base_face
+            
+            # Analyze this chunk
+            amplitude = self.audio_driven_face._analyze_amplitude_simple(audio_chunk)
+            dominant_freq = self.audio_driven_face._analyze_frequency_simple(audio_chunk)
+            speech_energy = self.audio_driven_face._analyze_speech_energy(audio_chunk)
+            
+            # Smooth features over time
+            smoothed_amplitude = self.audio_driven_face._smooth_feature(amplitude, self.audio_driven_face.amplitude_history)
+            smoothed_frequency = self.audio_driven_face._smooth_feature(dominant_freq, self.audio_driven_face.frequency_history)
+            
+            # Map to facial parameters
+            jaw_drop = self.audio_driven_face._map_amplitude_to_jaw(smoothed_amplitude)
+            lip_width = self.audio_driven_face._map_frequency_to_lip_width(smoothed_frequency)
+            lip_height = self.audio_driven_face._map_amplitude_to_lip_height(smoothed_amplitude)
+            micro_movement = self.audio_driven_face._generate_micro_movement(speech_energy)
+            
+            # Generate face with these parameters
+            deepfake_face = self.audio_driven_face._apply_deepfake_deformation(
+                self.audio_driven_face.base_face.copy(),
+                jaw_drop, lip_width, lip_height, micro_movement
+            )
+            
+            return deepfake_face
+            
+        except Exception as e:
+            self.logger.error(f"Error generating face for chunk: {e}")
+            return self.audio_driven_face.base_face if self.audio_driven_face else self.face_images.get('mouth_closed')
+    
     async def _display_mouth_shape(self, mouth_shape: str, duration: float):
         """Display mouth shape using real-time manipulation or smooth morphing"""
         try:
