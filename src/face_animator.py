@@ -374,25 +374,33 @@ class FaceAnimator:
                     # Original mouth center: (512, 1152), face: (1536, 1024, 3)
                     import cv2
                     
-                    # Define crop area around mouth (show more of lower face)
-                    crop_height = 600  # Show 600 pixels of height around mouth area
-                    crop_width = 800   # Show 800 pixels of width around mouth area
+                    # Define crop area around mouth (show proper face context)
+                    crop_height = 800  # Show more of the face context
+                    crop_width = 600   # Keep reasonable width
                     
                     mouth_y = 1152  # Original mouth Y coordinate
                     mouth_x = 512   # Original mouth X coordinate
                     
-                    # Calculate crop bounds (ensure we don't go outside image bounds)
-                    y1 = max(0, mouth_y - crop_height // 3)  # Show more below mouth than above
+                    # Calculate crop bounds to center mouth in view
+                    y1 = max(0, mouth_y - crop_height // 2)  # Center mouth vertically
                     y2 = min(face.shape[0], y1 + crop_height)
-                    x1 = max(0, mouth_x - crop_width // 2)
+                    x1 = max(0, mouth_x - crop_width // 2)   # Center mouth horizontally
                     x2 = min(face.shape[1], x1 + crop_width)
                     
-                    # Crop the face to focus on mouth area
+                    # Adjust if we hit boundaries
+                    if y2 == face.shape[0]:
+                        y1 = max(0, y2 - crop_height)
+                    if x2 == face.shape[1]:
+                        x1 = max(0, x2 - crop_width)
+                    
+                    # Crop the face to focus on mouth area with context
                     mouth_crop = face[y1:y2, x1:x2]
                     print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {mouth_crop.shape}, crop region: ({x1},{y1}) to ({x2},{y2})")
+                    print(f"🎯 MOUTH DEBUG: Mouth at ({mouth_x},{mouth_y}) should be at crop center (~{crop_width//2},{crop_height//2})")
                     
-                    # Now scale the cropped area to fit screen
-                    scale_factor = min(720 / mouth_crop.shape[0], 1280 / mouth_crop.shape[1])
+                    # Scale to fit screen nicely (not too big, not too small)
+                    target_height = 500  # Reasonable size for viewing
+                    scale_factor = target_height / mouth_crop.shape[0]
                     new_width = int(mouth_crop.shape[1] * scale_factor)
                     new_height = int(mouth_crop.shape[0] * scale_factor)
                     
