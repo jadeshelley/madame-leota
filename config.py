@@ -48,9 +48,14 @@ ANIMATION_SPEED = 1.0
 LIP_SYNC_SENSITIVITY = 0.8
 
 # Real-Time Face Manipulation (Option 4 - Most Realistic!)
-USE_REALTIME_FACE_MANIPULATION = True  # Set to False for simple morphing
-FACE_MANIPULATION_QUALITY = "medium"   # low, medium, high (affects Pi performance)
-MOUTH_BLEND_SMOOTHNESS = 0.8           # 0.0 to 1.0 - smoothness of mouth blending
+USE_REALTIME_FACE_MANIPULATION = False  # Set to True when dlib is working
+FACE_MANIPULATION_QUALITY = "medium"    # low, medium, high (affects Pi performance)
+MOUTH_BLEND_SMOOTHNESS = 0.8            # 0.0 to 1.0 - smoothness of mouth blending
+
+# Enhanced Morphing (Fallback - No dependencies needed!)
+USE_ENHANCED_MORPHING = True             # Better morphing with timing effects
+MORPH_STEPS = 8                         # More steps = smoother (but slower)
+MORPH_TIMING = "dynamic"                # "linear" or "dynamic" easing
 
 # Madame Leota Personality
 LEOTA_PERSONALITY = """You are Madame Leota, a mystical fortune teller trapped in a crystal ball. 

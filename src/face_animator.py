@@ -267,7 +267,7 @@ class FaceAnimator:
             await self._display_mouth_shape_morphing(mouth_shape, duration)
     
     async def _display_mouth_shape_morphing(self, mouth_shape: str, duration: float):
-        """Original smooth morphing method as fallback"""
+        """Enhanced smooth morphing method with dynamic timing"""
         try:
             target_image = self.face_images.get(mouth_shape, self.face_images.get('mouth_closed'))
             
@@ -275,16 +275,34 @@ class FaceAnimator:
                 # Get current face for smooth transition
                 current_image = getattr(self, '_current_face', self.face_images.get('mouth_closed'))
                 
-                # Smooth morph between current and target over 0.1 seconds
-                morph_steps = 5
-                morph_duration = min(0.1, duration / 2)  # Quick transition
+                # Enhanced morphing settings
+                if USE_ENHANCED_MORPHING:
+                    morph_steps = MORPH_STEPS
+                    # Dynamic timing - faster start, slower end for more natural feel
+                    morph_duration = min(0.15, duration / 2)  # Slightly longer for smoothness
+                else:
+                    morph_steps = 5
+                    morph_duration = min(0.1, duration / 2)
+                
                 step_time = morph_duration / morph_steps
                 
                 for step in range(morph_steps + 1):
-                    alpha = step / morph_steps  # 0.0 to 1.0
+                    # Dynamic easing for more natural movement
+                    if USE_ENHANCED_MORPHING and MORPH_TIMING == "dynamic":
+                        # Ease-in-out curve (slow-fast-slow)
+                        t = step / morph_steps
+                        alpha = t * t * (3.0 - 2.0 * t)  # Smooth step function
+                    else:
+                        alpha = step / morph_steps  # Linear
                     
                     # Blend images for smooth transition
                     blended = cv2.addWeighted(current_image, 1 - alpha, target_image, alpha, 0)
+                    
+                    # Add subtle brightness variation for more life-like effect
+                    if USE_ENHANCED_MORPHING:
+                        # Slight brightness pulse during speech
+                        brightness_factor = 1.0 + 0.05 * np.sin(step * 2)
+                        blended = cv2.convertScaleAbs(blended, alpha=brightness_factor, beta=0)
                     
                     # Scale and display
                     scaled_face = self._scale_face(blended)
@@ -296,13 +314,44 @@ class FaceAnimator:
                 # Hold the target shape for remaining duration
                 hold_time = duration - morph_duration
                 if hold_time > 0:
-                    await asyncio.sleep(hold_time)
+                    # Add subtle animation during hold for more realistic effect
+                    if USE_ENHANCED_MORPHING and hold_time > 0.3:
+                        await self._animate_hold_phase(target_image, hold_time)
+                    else:
+                        await asyncio.sleep(hold_time)
                 
                 # Store current face for next transition
                 self._current_face = target_image.copy()
             
         except Exception as e:
-            self.logger.error(f"Error in morphing fallback for {mouth_shape}: {e}")
+            self.logger.error(f"Error in enhanced morphing for {mouth_shape}: {e}")
+    
+    async def _animate_hold_phase(self, face_image: np.ndarray, duration: float):
+        """Add subtle animation during the hold phase for more realism"""
+        try:
+            steps = max(3, int(duration * 10))  # ~10 FPS during hold
+            step_time = duration / steps
+            
+            for i in range(steps):
+                # Subtle micro-movements
+                offset_x = int(2 * np.sin(i * 0.5))  # Small horizontal sway
+                offset_y = int(1 * np.cos(i * 0.3))  # Tiny vertical movement
+                
+                # Apply micro-movement
+                h, w = face_image.shape[:2]
+                M = np.float32([[1, 0, offset_x], [0, 1, offset_y]])
+                animated = cv2.warpAffine(face_image, M, (w, h), borderMode=cv2.BORDER_REFLECT)
+                
+                # Scale and display
+                scaled_face = self._scale_face(animated)
+                self.display_manager.update_display(scaled_face)
+                
+                await asyncio.sleep(step_time)
+                
+        except Exception as e:
+            self.logger.error(f"Error in hold phase animation: {e}")
+            # Fallback to static hold
+            await asyncio.sleep(duration)
     
     def start_idle_animation(self):
         """Start idle breathing animation"""

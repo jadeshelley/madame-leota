@@ -6,9 +6,11 @@ pyttsx3==2.90
 pygame==2.5.2
 pyaudio==0.2.11
 
-# Real-time face manipulation (Pi-compatible versions)
-dlib>=19.22.0
+# Enhanced morphing (no external dependencies needed!)
 imutils==0.5.4
+
+# Real-time face manipulation (optional - install separately if wanted)
+# dlib>=19.22.0
 
 # System utilities
 python-dotenv==1.0.0
@@ -18,6 +20,8 @@ pillow==10.0.1
 # Audio processing (simplified for Pi)
 soundfile==0.13.1
 
+# Note: For real-time face manipulation, install dlib via system package:
+# sudo apt install python3-dlib
 # Note: Install these via system packages instead of pip:
 # sudo apt install python3-opencv python3-numpy python3-pyaudio python3-dlib
 # Then create virtual environment with: python3 -m venv --system-site-packages venv 
