@@ -70,41 +70,54 @@ class AudioDrivenFace:
             self.logger.error(f"Error loading base face: {e}")
             return False
     
-    async def generate_face_from_audio(self, audio_data: bytes, duration: float) -> np.ndarray:
+    def generate_face_from_audio(self, audio_data: bytes, duration: float) -> np.ndarray:
         """Generate deepfake-like face animation from audio data"""
         try:
+            print(f"🎭 GENERATE DEBUG: generate_face_from_audio called with {len(audio_data)} bytes, duration {duration}")
             self.logger.info(f"generate_face_from_audio called with {len(audio_data)} bytes, duration {duration}")
             
             if self.base_face is None:
+                print(f"❌ GENERATE DEBUG: Base face is None!")
                 self.logger.error("Base face is None!")
                 return self.base_face
             
+            print(f"✅ GENERATE DEBUG: Base face exists, shape: {self.base_face.shape}")
+            
             # Convert audio bytes to numpy array
             audio_array = self._bytes_to_audio_array(audio_data)
+            print(f"✅ GENERATE DEBUG: Audio converted to array: {len(audio_array)} samples")
             self.logger.info(f"Converted to audio array: {len(audio_array)} samples")
             
             if len(audio_array) == 0:
+                print(f"❌ GENERATE DEBUG: Audio array is empty")
                 self.logger.warning("Audio array is empty")
                 return self.base_face
             
             # Analyze audio features (simplified for Pi)
+            print(f"🔊 GENERATE DEBUG: About to analyze audio features...")
             amplitude = self._analyze_amplitude_simple(audio_array)
             dominant_freq = self._analyze_frequency_simple(audio_array)
             speech_energy = self._analyze_speech_energy(audio_array)
             
+            print(f"✅ GENERATE DEBUG: Audio analysis complete - amp:{amplitude:.3f}, freq:{dominant_freq:.3f}, energy:{speech_energy:.3f}")
             self.logger.info(f"Audio analysis - amplitude: {amplitude:.3f}, freq: {dominant_freq:.3f}, energy: {speech_energy:.3f}")
             
             # Smooth features over time for natural movement
+            print(f"🔄 GENERATE DEBUG: About to smooth features...")
             smoothed_amplitude = self._smooth_feature(amplitude, self.amplitude_history)
             smoothed_frequency = self._smooth_feature(dominant_freq, self.frequency_history)
             
+            print(f"✅ GENERATE DEBUG: Smoothing complete - smooth_amp:{smoothed_amplitude:.3f}, smooth_freq:{smoothed_frequency:.3f}")
             self.logger.info(f"Smoothed - amplitude: {smoothed_amplitude:.3f}, freq: {smoothed_frequency:.3f}")
             
             # Map audio features to facial parameters
+            print(f"🎭 GENERATE DEBUG: About to map audio to facial parameters...")
             jaw_drop = self._map_amplitude_to_jaw(smoothed_amplitude)
             lip_width = self._map_frequency_to_lip_width(smoothed_frequency)
             lip_height = self._map_amplitude_to_lip_height(smoothed_amplitude)
             micro_movement = self._generate_micro_movement(speech_energy)
+            
+            print(f"✅ GENERATE DEBUG: Facial parameters mapped - jaw:{jaw_drop:.1f}, lip_w:{lip_width:.3f}, lip_h:{lip_height:.3f}")
             
             # 🔍 DEBUG: Track parameter changes to verify dynamic movement
             if not hasattr(self, '_param_history'):
@@ -132,18 +145,22 @@ class AudioDrivenFace:
             self.logger.info(f"Face params - jaw: {jaw_drop:.1f}, width: {lip_width:.3f}, height: {lip_height:.3f}, movement: {micro_movement}")
             
             # Generate deepfake-like face with these parameters
+            print(f"🎭 GENERATE DEBUG: About to apply deepfake deformation...")
             deepfake_face = self._apply_deepfake_deformation(
                 self.base_face.copy(),
                 jaw_drop, lip_width, lip_height, micro_movement
             )
             
+            print(f"✅ GENERATE DEBUG: Deformation complete, returning face with shape: {deepfake_face.shape}")
             self.logger.info(f"Generated deepfake face with shape: {deepfake_face.shape}")
             return deepfake_face
             
         except Exception as e:
-            self.logger.error(f"Error in deepfake face generation: {e}")
-            self.logger.error(f"Exception details: {type(e).__name__}: {str(e)}")
-            return self.base_face
+            print(f"❌ GENERATE DEBUG: Major error in generate_face_from_audio: {e}")
+            import traceback
+            print(f"❌ GENERATE TRACEBACK: {traceback.format_exc()}")
+            self.logger.error(f"Error generating deepfake face: {e}")
+            return self.base_face if self.base_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
     
     def _bytes_to_audio_array(self, audio_data: bytes) -> np.ndarray:
         """Convert audio bytes to numpy array (Pi-compatible)"""

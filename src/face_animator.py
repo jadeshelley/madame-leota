@@ -392,20 +392,35 @@ class FaceAnimator:
     def _generate_face_for_chunk(self, audio_chunk: np.ndarray) -> np.ndarray:
         """Generate face for a single audio chunk"""
         try:
+            print(f"🎬 CHUNK DEBUG: _generate_face_for_chunk called with {len(audio_chunk)} samples")
+            
             # Use audio-driven face to generate the face
             if self.audio_driven_face and hasattr(self.audio_driven_face, 'generate_face_from_audio'):
+                print(f"✅ CHUNK DEBUG: Audio-driven face available, converting chunk to bytes...")
+                
                 # Convert audio chunk back to bytes for the audio_driven_face system
                 audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
+                print(f"✅ CHUNK DEBUG: Converted {len(audio_chunk)} samples to {len(audio_bytes)} bytes")
+                
+                print(f"🎭 CHUNK DEBUG: About to call generate_face_from_audio...")
                 face = self.audio_driven_face.generate_face_from_audio(audio_bytes, duration=len(audio_chunk)/22050)
+                print(f"✅ CHUNK DEBUG: generate_face_from_audio returned face with shape: {face.shape}")
                 return face
             else:
+                print(f"❌ CHUNK DEBUG: Audio-driven face not available!")
+                print(f"❌ CHUNK DEBUG: self.audio_driven_face = {self.audio_driven_face}")
+                if self.audio_driven_face:
+                    print(f"❌ CHUNK DEBUG: has generate_face_from_audio = {hasattr(self.audio_driven_face, 'generate_face_from_audio')}")
+                
                 # Fallback to current face
                 self.logger.warning("Audio-driven face not available, using static face")
                 return self._current_face.copy() if self._current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
                 
         except Exception as e:
-            self.logger.error(f"Error generating face for chunk: {e}")
+            print(f"❌ CHUNK DEBUG: Error in _generate_face_for_chunk: {e}")
             import traceback
+            print(f"❌ CHUNK TRACEBACK: {traceback.format_exc()}")
+            self.logger.error(f"Error generating face for chunk: {e}")
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             # Return current face as fallback
             return self._current_face.copy() if self._current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
