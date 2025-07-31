@@ -46,14 +46,24 @@ class AudioDrivenFace:
         try:
             self.base_face = cv2.imread(face_image_path)
             if self.base_face is None:
+                self.logger.error(f"Could not load base face from {face_image_path}")
                 return False
             
             self.face_height, self.face_width = self.base_face.shape[:2]
             
-            # Estimate mouth center (can be made more sophisticated)
-            self.mouth_center = (self.face_width // 2, int(self.face_height * 0.72))
+            # Calculate approximate mouth center (simplified approach for Pi)
+            # Assume mouth is in the lower third, center horizontally
+            self.mouth_center = (
+                self.face_width // 2,  # Center horizontally
+                int(self.face_height * 0.75)  # Lower third vertically
+            )
             
-            self.logger.info("Base face loaded for deepfake-like manipulation")
+            # 🔍 DEBUG: Show mouth center calculation
+            print(f"🎭 MOUTH CENTER DEBUG: Face loaded - size: {self.face_width}x{self.face_height}")
+            print(f"🎭 MOUTH CENTER DEBUG: Calculated mouth center: {self.mouth_center}")
+            print(f"🎭 MOUTH CENTER DEBUG: That's {self.mouth_center[0]/self.face_width*100:.1f}% across, {self.mouth_center[1]/self.face_height*100:.1f}% down")
+            
+            self.logger.info(f"Base face loaded: {self.face_width}x{self.face_height}, mouth center: {self.mouth_center}")
             return True
             
         except Exception as e:
@@ -95,6 +105,29 @@ class AudioDrivenFace:
             lip_width = self._map_frequency_to_lip_width(smoothed_frequency)
             lip_height = self._map_amplitude_to_lip_height(smoothed_amplitude)
             micro_movement = self._generate_micro_movement(speech_energy)
+            
+            # 🔍 DEBUG: Track parameter changes to verify dynamic movement
+            if not hasattr(self, '_param_history'):
+                self._param_history = []
+            
+            current_params = (jaw_drop, lip_width, lip_height, smoothed_amplitude)
+            self._param_history.append(current_params)
+            
+            # Show parameter changes every few frames
+            if len(self._param_history) % 3 == 0:  # Every 3rd frame
+                print(f"🎭 PARAMS DEBUG: jaw={jaw_drop:.1f}, lip_w={lip_width:.3f}, lip_h={lip_height:.3f}, amp={smoothed_amplitude:.3f}")
+                
+                # Check if parameters are actually changing
+                if len(self._param_history) >= 3:
+                    recent_params = self._param_history[-3:]
+                    jaw_variance = max([p[0] for p in recent_params]) - min([p[0] for p in recent_params])
+                    width_variance = max([p[1] for p in recent_params]) - min([p[1] for p in recent_params])
+                    height_variance = max([p[2] for p in recent_params]) - min([p[2] for p in recent_params])
+                    
+                    print(f"🎭 VARIANCE DEBUG: jaw_var={jaw_variance:.2f}, width_var={width_variance:.3f}, height_var={height_variance:.3f}")
+                    
+                    if jaw_variance < 0.5 and width_variance < 0.01 and height_variance < 0.01:
+                        print("⚠️  STATIC PARAMS WARNING: Parameters are not changing much - mouth may appear static!")
             
             self.logger.info(f"Face params - jaw: {jaw_drop:.1f}, width: {lip_width:.3f}, height: {lip_height:.3f}, movement: {micro_movement}")
             
@@ -350,23 +383,35 @@ class AudioDrivenFace:
         return smoothed
     
     def _map_amplitude_to_jaw(self, amplitude: float) -> float:
-        """Map audio amplitude to jaw drop (deepfake-like)"""
+        """Map audio amplitude to jaw drop amount"""
         min_jaw, max_jaw = self.jaw_range
-        # Use power curve for more natural jaw movement
-        jaw_amount = amplitude ** 0.8
-        return min_jaw + jaw_amount * (max_jaw - min_jaw)
+        jaw_drop = min_jaw + (max_jaw - min_jaw) * amplitude
+        
+        # 🔧 MAKE MORE DRAMATIC: Increase jaw movement for visibility  
+        jaw_drop = jaw_drop * 2.0  # Double the jaw movement
+        
+        return jaw_drop
     
     def _map_frequency_to_lip_width(self, frequency: float) -> float:
-        """Map frequency to lip width (higher freq = wider lips)"""
+        """Map dominant frequency to lip width"""
         min_width, max_width = self.lip_width_range
-        return min_width + frequency * (max_width - min_width)
+        lip_width = min_width + (max_width - min_width) * frequency
+        
+        # 🔧 MAKE MORE DRAMATIC: Increase lip width variation
+        # Make it vary more dramatically between 0.7 and 1.4
+        lip_width = 0.7 + (1.4 - 0.7) * frequency
+        
+        return lip_width
     
     def _map_amplitude_to_lip_height(self, amplitude: float) -> float:
-        """Map amplitude to lip height (louder = more open)"""
+        """Map audio amplitude to lip height"""
         min_height, max_height = self.lip_height_range
-        # More aggressive mapping for dramatic effect
-        height_amount = amplitude ** 0.6
-        return min_height + height_amount * (max_height - min_height)
+        lip_height = min_height + (max_height - min_height) * amplitude
+        
+        # 🔧 MAKE MORE DRAMATIC: Increase lip height variation  
+        lip_height = lip_height * 1.5  # Make lip height changes more dramatic
+        
+        return lip_height
     
     def _generate_micro_movement(self, speech_energy: float) -> Tuple[float, float]:
         """Generate natural micro-movements"""
@@ -384,11 +429,16 @@ class AudioDrivenFace:
                                   lip_height: float, micro_movement: Tuple[float, float]) -> np.ndarray:
         """Apply realistic mouth deformation like a deepfake video"""
         try:
+            # 🔍 DEBUG: Track what's happening with deformation
+            print(f"🎭 DEFORM DEBUG: Starting deformation - jaw:{jaw_drop:.2f}, lip_w:{lip_width:.3f}, lip_h:{lip_height:.3f}")
+            
             h, w = face_image.shape[:2]
             
             # Get mouth center and micro movements
             mouth_x, mouth_y = self.mouth_center
             offset_x, offset_y = micro_movement
+            
+            print(f"🎭 DEFORM DEBUG: Face shape: {face_image.shape}, mouth center: ({mouth_x}, {mouth_y})")
             
             # Define mouth region for deformation (smaller for better performance)
             mouth_width = int(w * 0.15)  
@@ -400,7 +450,10 @@ class AudioDrivenFace:
             y1 = max(0, mouth_y - mouth_height // 2)
             y2 = min(h, mouth_y + mouth_height // 2)
             
+            print(f"🎭 DEFORM DEBUG: Mouth region: ({x1},{y1}) to ({x2},{y2}), size: {mouth_width}x{mouth_height}")
+            
             if x2 <= x1 or y2 <= y1:
+                print("❌ DEFORM DEBUG: Invalid mouth region, returning original")
                 return face_image
             
             # Extract mouth region
@@ -408,6 +461,7 @@ class AudioDrivenFace:
             mouth_h, mouth_w = mouth_region.shape[:2]
             
             if mouth_h < 10 or mouth_w < 10:  # Too small to deform
+                print(f"❌ DEFORM DEBUG: Mouth region too small: {mouth_w}x{mouth_h}")
                 return face_image
             
             # Create simpler transformation matrix for reliable Pi performance
@@ -420,6 +474,8 @@ class AudioDrivenFace:
             # Translation for jaw drop and micro movements
             translate_x = offset_x * 0.5
             translate_y = jaw_drop * 0.3 + offset_y * 0.5
+            
+            print(f"🎭 DEFORM DEBUG: Transform - scale_x:{scale_x:.3f}, scale_y:{scale_y:.3f}, translate_x:{translate_x:.2f}, translate_y:{translate_y:.2f}")
             
             # Simple affine transformation matrix
             transform_matrix = np.array([
@@ -435,6 +491,8 @@ class AudioDrivenFace:
                 flags=cv2.INTER_LINEAR,  # Faster than INTER_CUBIC
                 borderMode=cv2.BORDER_REFLECT
             )
+            
+            print(f"✅ DEFORM DEBUG: Mouth deformation completed successfully")
             
             # Create blending mask for seamless integration
             mask = self._create_simple_blend_mask(mouth_region.shape[:2])
@@ -454,6 +512,7 @@ class AudioDrivenFace:
                     mask = cv2.resize(mask, (deformed_mouth.shape[1], deformed_mouth.shape[0]))
                 # If still mismatched, skip blending
                 if deformed_mouth.shape != target_region.shape:
+                    print("❌ DEFORM DEBUG: Dimension mismatch after resize, returning original")
                     return face_image
             
             # Apply blending with proper dimension checks
@@ -463,7 +522,9 @@ class AudioDrivenFace:
                         mask * deformed_mouth[:, :, c] + 
                         (1 - mask) * target_region[:, :, c]
                     )
+                print(f"✅ DEFORM DEBUG: Blending completed - result shape: {result_face.shape}")
             except Exception as blend_error:
+                print(f"❌ DEFORM DEBUG: Blending error: {blend_error}")
                 self.logger.error(f"Blending error: {blend_error}")
                 return face_image
             
@@ -478,15 +539,18 @@ class AudioDrivenFace:
                 result_face = np.clip(result_face, 0, 255)
                 
                 # Convert to uint8 safely
+                print(f"✅ DEFORM DEBUG: Final result ready - returning deformed face")
                 return result_face.astype(np.uint8)
                 
             except Exception as conversion_error:
+                print(f"❌ DEFORM DEBUG: Conversion error: {conversion_error}")
                 self.logger.error(f"Error converting result face: {conversion_error}")
                 self.logger.error(f"Result face info: shape={result_face.shape}, dtype={result_face.dtype}, min={np.min(result_face)}, max={np.max(result_face)}")
                 # Return original face as fallback
                 return face_image.astype(np.uint8)
             
         except Exception as e:
+            print(f"❌ DEFORM DEBUG: Major error in deformation: {e}")
             self.logger.error(f"Error in simplified mouth deformation: {e}")
             return face_image
     
