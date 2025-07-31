@@ -58,29 +58,41 @@ print("✅ SETUP: Logging configured")
 
 class MadameLeotaApp:
     def __init__(self):
+        print("🎯 CONSTRUCTOR: Entering MadameLeotaApp.__init__()")
         self.logger = logging.getLogger(__name__)
+        print("✅ CONSTRUCTOR: Logger created")
         self.logger.info("🚀 Starting Madame Leota initialization...")
         
         # Initialize components
         try:
+            print("📱 CONSTRUCTOR: About to create DisplayManager...")
             self.logger.info("📱 Initializing Display Manager...")
             self.display_manager = DisplayManager()
+            print("✅ CONSTRUCTOR: DisplayManager created")
             self.logger.info("✅ Display Manager initialized")
             
+            print("🔊 CONSTRUCTOR: About to create AudioManager...")
             self.logger.info("🔊 Initializing Audio Manager...")
             self.audio_manager = AudioManager()
+            print("✅ CONSTRUCTOR: AudioManager created")
             self.logger.info("✅ Audio Manager initialized")
             
+            print("🧠 CONSTRUCTOR: About to create ChatGPTClient...")
             self.logger.info("🧠 Initializing ChatGPT Client...")
             self.chatgpt_client = ChatGPTClient()
+            print("✅ CONSTRUCTOR: ChatGPTClient created")
             self.logger.info("✅ ChatGPT Client initialized")
             
+            print("🗣️ CONSTRUCTOR: About to create SpeechProcessor...")
             self.logger.info("🗣️ Initializing Speech Processor...")
             self.speech_processor = SpeechProcessor()
+            print("✅ CONSTRUCTOR: SpeechProcessor created")
             self.logger.info("✅ Speech Processor initialized")
             
+            print("🎭 CONSTRUCTOR: About to create FaceAnimator...")
             self.logger.info("🎭 Initializing Face Animator...")
             self.face_animator = FaceAnimator(self.display_manager, self.speech_processor)
+            print("✅ CONSTRUCTOR: FaceAnimator created")
             self.logger.info("✅ Face Animator initialized")
             
             self.logger.info("🎉 All components initialized successfully!")
