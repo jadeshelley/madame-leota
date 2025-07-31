@@ -171,32 +171,49 @@ class SpeechProcessor:
     async def _generate_audio(self, text: str) -> bytes:
         """Generate audio data from text using Edge TTS or pyttsx3"""
         try:
+            print(f"🎵 TTS DEBUG: Starting audio generation, USE_EDGE_TTS={USE_EDGE_TTS}")
             if USE_EDGE_TTS:
-                return await self._generate_edge_tts_audio(text)
+                print("🎵 TTS DEBUG: Using Edge TTS...")
+                result = await self._generate_edge_tts_audio(text)
+                print(f"✅ TTS DEBUG: Edge TTS completed, got {len(result)} bytes")
+                return result
             else:
-                return await self._generate_pyttsx3_audio(text)
+                print("🎵 TTS DEBUG: Using pyttsx3...")
+                result = await self._generate_pyttsx3_audio(text)
+                print(f"✅ TTS DEBUG: pyttsx3 completed, got {len(result)} bytes")
+                return result
                 
         except Exception as e:
+            print(f"❌ TTS DEBUG: Audio generation error: {e}")
             self.logger.error(f"Audio generation error: {e}")
             return b''
     
     async def _generate_edge_tts_audio(self, text: str) -> bytes:
         """Generate audio using Edge TTS (high quality)"""
         try:
+            print("🎵 EDGE TTS DEBUG: Creating temp file...")
             # Create temporary file for audio
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
                 tmp_filename = tmp_file.name
+            print(f"✅ EDGE TTS DEBUG: Temp file created: {tmp_filename}")
             
+            print(f"🎵 EDGE TTS DEBUG: Creating Communicate object with voice: {EDGE_TTS_VOICE}")
             # Generate speech using Edge TTS
             communicate = edge_tts.Communicate(text, EDGE_TTS_VOICE)
+            print("🎵 EDGE TTS DEBUG: About to call communicate.save()...")
             await communicate.save(tmp_filename)
+            print("✅ EDGE TTS DEBUG: communicate.save() completed!")
             
+            print("🎵 EDGE TTS DEBUG: Reading generated audio file...")
             # Read the generated audio file
             with open(tmp_filename, 'rb') as f:
                 audio_data = f.read()
+            print(f"✅ EDGE TTS DEBUG: Read {len(audio_data)} bytes from audio file")
             
+            print("🎵 EDGE TTS DEBUG: Cleaning up temp file...")
             # Clean up temporary file
             os.unlink(tmp_filename)
+            print("✅ EDGE TTS DEBUG: Cleanup complete!")
             
             self.logger.debug(f"Generated Edge TTS audio: {len(audio_data)} bytes")
             return audio_data

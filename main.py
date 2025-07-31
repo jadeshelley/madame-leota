@@ -194,10 +194,13 @@ class MadameLeotaApp:
     async def speak_response(self, text):
         """Speak response with deepfake-like facial animation"""
         try:
+            print(f"🗣️ SPEAK DEBUG: About to speak: {text}")
             self.logger.info(f"Leota says: {text}")
             
+            print("🎵 SPEAK DEBUG: About to generate TTS audio...")
             # Generate audio and phoneme data for lip sync
             audio_data, phonemes = await self.speech_processor.text_to_speech_with_phonemes(text)
+            print(f"✅ SPEAK DEBUG: TTS completed! Audio: {len(audio_data)} bytes, phonemes: {len(phonemes)}")
             self.logger.info(f"Generated audio: {len(audio_data)} bytes, phonemes: {len(phonemes)}")
             
             # Check what animation system is available - DEBUG LOGGING
