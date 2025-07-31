@@ -284,7 +284,6 @@ class FaceAnimator:
             
             if not self.audio_driven_face:
                 self.logger.warning("No audio_driven_face available, falling back to phoneme animation")
-                # Fallback to regular phoneme-based animation
                 await self.animate_speaking(phonemes)
                 return
             
@@ -293,28 +292,51 @@ class FaceAnimator:
             self.is_speaking = True
             self.current_state = "speaking"
             
-            # Calculate total duration
+            # Calculate total duration and frame rate
             total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
-            self.logger.info(f"Total duration: {total_duration} seconds")
+            frame_rate = 15  # 15 FPS for smooth animation
+            frame_duration = 1.0 / frame_rate
+            total_frames = int(total_duration * frame_rate)
             
-            # Generate deepfake-like face from audio
-            self.logger.info("Generating deepfake face from audio...")
-            deepfake_face = await self.audio_driven_face.generate_face_from_audio(audio_data, total_duration)
+            self.logger.info(f"Real-time animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
             
-            if deepfake_face is None:
-                self.logger.error("Deepfake face generation returned None")
+            # Convert full audio once
+            audio_array = self.audio_driven_face._bytes_to_audio_array(audio_data)
+            if len(audio_array) == 0:
+                self.logger.error("Failed to convert audio, falling back to phoneme animation")
                 await self.animate_speaking(phonemes)
                 return
             
-            self.logger.info(f"Generated deepfake face shape: {deepfake_face.shape}")
+            # Calculate samples per frame
+            samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
+            self.logger.info(f"Processing {samples_per_frame} samples per frame")
             
-            # Display the result
-            self.display_manager.clear_screen()
-            self.display_manager.display_face(deepfake_face)
-            self.display_manager.update_display()
-            
-            # Hold for the duration
-            await asyncio.sleep(total_duration)
+            # Real-time animation loop
+            for frame in range(total_frames):
+                if not self.is_speaking:  # Allow interruption
+                    break
+                
+                frame_start_time = time.time()
+                
+                # Extract audio chunk for this frame
+                start_sample = frame * samples_per_frame
+                end_sample = min((frame + 1) * samples_per_frame, len(audio_array))
+                audio_chunk = audio_array[start_sample:end_sample]
+                
+                # Generate face for this audio chunk
+                if len(audio_chunk) > 0:
+                    deepfake_face = await self._generate_face_for_chunk(audio_chunk, frame_duration)
+                    
+                    # Display the frame
+                    self.display_manager.clear_screen()
+                    self.display_manager.display_face(deepfake_face)
+                    self.display_manager.update_display()
+                
+                # Maintain frame rate
+                elapsed = time.time() - frame_start_time
+                sleep_time = max(0, frame_duration - elapsed)
+                if sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
             
             # Return to idle
             self.is_speaking = False
