@@ -76,24 +76,47 @@ class AudioManager:
     async def play_audio(self, audio_data: bytes):
         """Play audio data asynchronously"""
         try:
+            print(f"🔊 AUDIO PLAY DEBUG: Attempting to play {len(audio_data)} bytes")
             if not audio_data:
                 self.logger.warning("No audio data to play")
                 return
             
-            # Convert bytes to BytesIO for pygame
-            audio_buffer = io.BytesIO(audio_data)
-            
-            # Load and play the sound
-            sound = pygame.mixer.Sound(audio_buffer)
-            channel = sound.play()
-            
-            # Wait for playback to complete
-            while channel.get_busy():
-                await asyncio.sleep(0.01)
+            # Try direct file approach first (more reliable with Edge TTS)
+            try:
+                import tempfile
+                import os
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+                    tmp_file.write(audio_data)
+                    tmp_filename = tmp_file.name
+                
+                print(f"🔊 AUDIO PLAY DEBUG: Playing from temp file: {tmp_filename}")
+                sound = pygame.mixer.Sound(tmp_filename)
+                channel = sound.play()
+                
+                # Wait for playback to complete
+                while channel.get_busy():
+                    await asyncio.sleep(0.01)
+                
+                # Clean up temp file
+                os.unlink(tmp_filename)
+                print("✅ AUDIO PLAY DEBUG: Playback completed successfully")
+                
+            except Exception as e1:
+                print(f"❌ AUDIO PLAY DEBUG: File method failed: {e1}, trying buffer method...")
+                # Fallback to buffer method
+                audio_buffer = io.BytesIO(audio_data)
+                sound = pygame.mixer.Sound(audio_buffer)
+                channel = sound.play()
+                
+                # Wait for playback to complete
+                while channel.get_busy():
+                    await asyncio.sleep(0.01)
+                print("✅ AUDIO PLAY DEBUG: Buffer method succeeded")
             
             self.logger.debug("Audio playback completed")
             
         except Exception as e:
+            print(f"❌ AUDIO PLAY DEBUG: All playback methods failed: {e}")
             self.logger.error(f"Audio playback error: {e}")
     
     def play_audio_sync(self, audio_data: bytes):

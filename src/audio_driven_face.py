@@ -115,23 +115,35 @@ class AudioDrivenFace:
     def _bytes_to_audio_array(self, audio_data: bytes) -> np.ndarray:
         """Convert audio bytes to numpy array (Pi-compatible)"""
         try:
+            print(f"🎵 AUDIO CONVERSION: Converting {len(audio_data)} bytes")
+            print(f"🎵 AUDIO CONVERSION: First 10 bytes: {audio_data[:10]}")
             self.logger.info(f"Audio data starts with: {audio_data[:10]}")
             
             # Try different audio format detection
             if audio_data.startswith(b'RIFF'):
                 # WAV format
+                print("🎵 AUDIO CONVERSION: Detected WAV format")
                 self.logger.info("Detected WAV format")
-                return self._convert_wav_to_array(audio_data)
+                result = self._convert_wav_to_array(audio_data)
+                print(f"✅ AUDIO CONVERSION: WAV result: {len(result)} samples")
+                return result
             elif audio_data.startswith(b'\xff\xfb') or audio_data.startswith(b'\xff\xf3'):
                 # MP3 format
+                print("🎵 AUDIO CONVERSION: Detected MP3 format")
                 self.logger.info("Detected MP3 format - converting")
-                return self._convert_mp3_to_array(audio_data)
+                result = self._convert_mp3_to_array(audio_data)
+                print(f"✅ AUDIO CONVERSION: MP3 result: {len(result)} samples")
+                return result
             else:
                 # Try to detect other formats or raw audio
+                print("🎵 AUDIO CONVERSION: Unknown format, trying raw")
                 self.logger.info("Unknown format, trying raw audio conversion")
-                return self._convert_raw_to_array(audio_data)
+                result = self._convert_raw_to_array(audio_data)
+                print(f"✅ AUDIO CONVERSION: Raw result: {len(result)} samples")
+                return result
                 
         except Exception as e:
+            print(f"❌ AUDIO CONVERSION: Failed: {e}")
             self.logger.error(f"Audio conversion error: {e}")
             return np.array([])
     
@@ -226,6 +238,7 @@ class AudioDrivenFace:
     def _analyze_amplitude_simple(self, audio_array: np.ndarray) -> float:
         """Simple amplitude analysis without external libraries"""
         if len(audio_array) == 0:
+            print("🔊 AMPLITUDE ANALYSIS: Empty audio array")
             return 0.0
         
         # RMS amplitude
@@ -235,7 +248,14 @@ class AudioDrivenFace:
         normalized = np.clip(rms * 8, 0.0, 1.0)
         
         # Apply power curve for more natural jaw movement
-        return normalized ** 0.7
+        result = normalized ** 0.7
+        
+        # Debug occasionally
+        import random
+        if random.random() < 0.05:  # 5% of the time
+            print(f"🔊 AMPLITUDE: chunk_size={len(audio_array)}, rms={rms:.4f}, normalized={normalized:.4f}, result={result:.4f}")
+        
+        return result
     
     def _analyze_frequency_simple(self, audio_array: np.ndarray) -> float:
         """Simple frequency analysis using basic FFT"""

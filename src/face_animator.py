@@ -339,9 +339,12 @@ class FaceAnimator:
                 await self.animate_speaking(phonemes)
                 return
             
-            # Calculate samples per frame
-            samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
-            self.logger.info(f"Processing {samples_per_frame} samples per frame")
+            # Calculate samples per frame with minimum size for analysis
+            raw_samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
+            samples_per_frame = max(512, raw_samples_per_frame)  # Ensure minimum 512 samples for frequency analysis
+            
+            print(f"🎭 CHUNK SIZE FIX: raw_samples_per_frame={raw_samples_per_frame}, fixed_samples_per_frame={samples_per_frame}")
+            self.logger.info(f"Processing {samples_per_frame} samples per frame (minimum 512 for analysis)")
             
             # Real-time animation loop
             for frame in range(total_frames):
