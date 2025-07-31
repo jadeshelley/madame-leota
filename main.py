@@ -4,19 +4,38 @@ Madame Leota Interactive Fortune Teller
 Main application file
 """
 
+print("🔄 IMPORT: Starting imports...")
 import asyncio
 import signal
 import sys
 import logging
 from pathlib import Path
 from typing import Optional
+print("✅ IMPORT: Standard library imports done")
 
+print("⚙️ IMPORT: Loading config...")
 from config import *
+print("✅ IMPORT: Config loaded")
+
+print("🔊 IMPORT: Loading AudioManager...")
 from src.audio_manager import AudioManager
+print("✅ IMPORT: AudioManager loaded")
+
+print("🧠 IMPORT: Loading ChatGPTClient...")
 from src.chatgpt_client import ChatGPTClient
+print("✅ IMPORT: ChatGPTClient loaded")
+
+print("🎭 IMPORT: Loading FaceAnimator...")
 from src.face_animator import FaceAnimator
+print("✅ IMPORT: FaceAnimator loaded")
+
+print("🗣️ IMPORT: Loading SpeechProcessor...")
 from src.speech_processor import SpeechProcessor
+print("✅ IMPORT: SpeechProcessor loaded")
+
+print("📱 IMPORT: Loading DisplayManager...")
 from src.display_manager import DisplayManager
+print("✅ IMPORT: All imports complete!")
 
 # Setup logging
 logging.basicConfig(
@@ -216,14 +235,21 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 async def main():
+    print("🌟 MAIN: Starting main function...")
+    
     # Setup signal handlers
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+    print("✅ MAIN: Signal handlers set up")
     
     # Create and run the application
+    print("🏗️ MAIN: About to create MadameLeotaApp...")
     app = MadameLeotaApp()
+    print("✅ MAIN: MadameLeotaApp created successfully!")
     
+    print("⚙️ MAIN: About to run initialize...")
     if await app.initialize():
+        print("🎬 MAIN: Starting conversation...")
         await app.start_conversation()
     else:
         print("Failed to initialize Madame Leota. Check logs for details.")
