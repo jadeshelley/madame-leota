@@ -28,18 +28,25 @@ else:
 # Import audio-driven face system if enabled
 if USE_AUDIO_DRIVEN_FACE:
     try:
+        logging.info("Attempting to import AudioDrivenFace...")
         from .audio_driven_face import AudioDrivenFace
         AUDIO_DRIVEN_AVAILABLE = True
+        logging.info("✅ AudioDrivenFace imported successfully!")
     except ImportError as e:
-        logging.warning(f"Audio-driven face manipulation not available: {e}")
+        logging.warning(f"❌ Audio-driven face manipulation not available: {e}")
         AUDIO_DRIVEN_AVAILABLE = False
 else:
+    logging.info("USE_AUDIO_DRIVEN_FACE is False in config")
     AUDIO_DRIVEN_AVAILABLE = False
 
 class FaceAnimator:
     def __init__(self, display_manager):
         self.logger = logging.getLogger(__name__)
         self.display_manager = display_manager
+        
+        # Log configuration status
+        self.logger.info(f"Face Animator Config - USE_AUDIO_DRIVEN_FACE: {USE_AUDIO_DRIVEN_FACE}")
+        self.logger.info(f"Face Animator Config - AUDIO_DRIVEN_AVAILABLE: {AUDIO_DRIVEN_AVAILABLE}")
         
         # Animation state
         self.current_state = "idle"
@@ -82,24 +89,37 @@ class FaceAnimator:
         
         # Initialize audio-driven face system if available (highest priority)
         self.audio_driven_face = None
+        self.logger.info(f"🔍 Checking audio-driven face: USE_AUDIO_DRIVEN_FACE={USE_AUDIO_DRIVEN_FACE}, AVAILABLE={AUDIO_DRIVEN_AVAILABLE}")
+        
         if USE_AUDIO_DRIVEN_FACE and AUDIO_DRIVEN_AVAILABLE:
             try:
+                self.logger.info("🚀 Initializing AudioDrivenFace...")
                 self.audio_driven_face = AudioDrivenFace()
+                self.logger.info("✅ AudioDrivenFace created successfully")
+                
                 # Load base face for manipulation
                 base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
+                self.logger.info(f"📁 Looking for base face at: {base_face_path}")
+                
                 if base_face_path.exists():
+                    self.logger.info("✅ Base face file found, loading...")
                     success = self.audio_driven_face.load_base_face(str(base_face_path))
                     if success:
-                        self.logger.info("Audio-driven deepfake-like face manipulation enabled")
+                        self.logger.info("🎭 Audio-driven deepfake-like face manipulation enabled!")
                     else:
-                        self.logger.warning("Failed to load base face for audio-driven manipulation")
+                        self.logger.error("❌ Failed to load base face for audio-driven manipulation")
                         self.audio_driven_face = None
                 else:
-                    self.logger.warning("No base face found for audio-driven manipulation")
+                    self.logger.error(f"❌ No base face found at {base_face_path}")
                     self.audio_driven_face = None
             except Exception as e:
-                self.logger.warning(f"Audio-driven face setup failed: {e}")
+                self.logger.error(f"❌ Audio-driven face setup failed: {e}")
+                self.logger.error(f"Exception type: {type(e).__name__}")
+                import traceback
+                self.logger.error(f"Full traceback: {traceback.format_exc()}")
                 self.audio_driven_face = None
+        else:
+            self.logger.warning("⚠️  Audio-driven face not available - will use fallback animation")
         
         # Create base face if no assets found
         if not self.face_images:
@@ -109,9 +129,9 @@ class FaceAnimator:
         self._current_face = self.face_images.get('mouth_closed', self.face_images.get('base'))
         
         animation_type = "audio-driven deepfake-like" if self.audio_driven_face else \
-                        "real-time manipulation" if self.realtime_manipulator else \
-                        "enhanced morphing"
-        self.logger.info(f"Face Animator initialized with {animation_type}")
+                         "real-time manipulation" if self.realtime_manipulator else \
+                         "enhanced morphing"
+        self.logger.info(f"🎬 Face Animator initialized with: {animation_type}")
     
     def _load_face_assets(self) -> Dict[str, np.ndarray]:
         """Load face image assets"""
