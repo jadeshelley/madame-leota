@@ -6,10 +6,9 @@ pyttsx3==2.90
 pygame==2.5.2
 pyaudio==0.2.11
 
-# Real-time face manipulation
-mediapipe==0.10.7
-opencv-python==4.8.1.78
-dlib==19.24.2
+# Real-time face manipulation (Pi-compatible versions)
+dlib>=19.22.0
+imutils==0.5.4
 
 # System utilities
 python-dotenv==1.0.0
@@ -20,5 +19,5 @@ pillow==10.0.1
 soundfile==0.13.1
 
 # Note: Install these via system packages instead of pip:
-# sudo apt install python3-opencv python3-numpy python3-pyaudio
+# sudo apt install python3-opencv python3-numpy python3-pyaudio python3-dlib
 # Then create virtual environment with: python3 -m venv --system-site-packages venv 
