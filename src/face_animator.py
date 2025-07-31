@@ -91,6 +91,9 @@ class FaceAnimator:
                     print(f"⚠️ FALLBACK: Audio-driven initialization failed: {e}")
                     self.logger.warning(f"Audio-driven face initialization failed: {e}")
         
+        # Initialize face_images attribute
+        self.face_images = {}
+        
         # Load face assets
         self._load_face_assets()
         
@@ -136,6 +139,7 @@ class FaceAnimator:
             try:
                 print("🚀 DEBUG: About to create AudioDrivenFace instance...")
                 self.logger.info("🚀 Initializing AudioDrivenFace...")
+                from .audio_driven_face import AudioDrivenFace
                 self.audio_driven_face = AudioDrivenFace()
                 print("✅ DEBUG: AudioDrivenFace instance created!")
                 self.logger.info("✅ AudioDrivenFace created successfully")
