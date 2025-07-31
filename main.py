@@ -91,7 +91,7 @@ class MadameLeotaApp:
             
             print("🎭 CONSTRUCTOR: About to create FaceAnimator...")
             self.logger.info("🎭 Initializing Face Animator...")
-            self.face_animator = FaceAnimator(self.display_manager, self.speech_processor)
+            self.face_animator = FaceAnimator(self.display_manager)
             print("✅ CONSTRUCTOR: FaceAnimator created")
             self.logger.info("✅ Face Animator initialized")
             

@@ -54,7 +54,9 @@ class FaceAnimator:
         self.idle_animation_running = False
         
         # Load face assets
+        print("📁 DEBUG: About to load face assets...")
         self.face_images = self._load_face_assets()
+        print("✅ DEBUG: Face assets loaded!")
         
         # Animation timing
         self.animation_start_time = 0
@@ -93,8 +95,10 @@ class FaceAnimator:
         
         if USE_AUDIO_DRIVEN_FACE and AUDIO_DRIVEN_AVAILABLE:
             try:
+                print("🚀 DEBUG: About to create AudioDrivenFace instance...")
                 self.logger.info("🚀 Initializing AudioDrivenFace...")
                 self.audio_driven_face = AudioDrivenFace()
+                print("✅ DEBUG: AudioDrivenFace instance created!")
                 self.logger.info("✅ AudioDrivenFace created successfully")
                 
                 # Load base face for manipulation
