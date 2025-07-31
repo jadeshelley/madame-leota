@@ -11,17 +11,28 @@ import pygame
 from config import *
 
 class DisplayManager:
-    def __init__(self):
+    def __init__(self, width: int = SCREEN_WIDTH, height: int = SCREEN_HEIGHT, fullscreen: bool = FULLSCREEN):
         self.logger = logging.getLogger(__name__)
+        
+        # Display settings
+        self.screen_width = width
+        self.screen_height = height
+        self.fullscreen = fullscreen
+        self.background_color = BACKGROUND_COLOR
+        
+        # Face display dimensions for scaling
+        self.face_display_width = int(width * 0.6)  # 60% of screen width
+        self.face_display_height = int(height * 0.8)  # 80% of screen height
+        
+        # Center coordinates
+        self.center_x = width // 2
+        self.center_y = height // 2
         
         # Initialize pygame display
         pygame.init()
         
         # Set up display
-        self.screen_width = PROJECTOR_WIDTH
-        self.screen_height = PROJECTOR_HEIGHT
-        
-        if FULLSCREEN:
+        if fullscreen:
             self.screen = pygame.display.set_mode(
                 (self.screen_width, self.screen_height), 
                 pygame.FULLSCREEN
