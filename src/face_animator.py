@@ -1,6 +1,7 @@
 """
 Face Animator for Madame Leota
 Controls facial expressions, lip sync, and idle animations
+Supports both smooth morphing and real-time face manipulation
 """
 
 import cv2
@@ -12,6 +13,17 @@ import math
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 from config import *
+
+# Import real-time face manipulator if enabled
+if USE_REALTIME_FACE_MANIPULATION:
+    try:
+        from .realtime_face_manipulator import RealtimeFaceManipulator
+        REALTIME_AVAILABLE = True
+    except ImportError as e:
+        logging.warning(f"Real-time face manipulation not available: {e}")
+        REALTIME_AVAILABLE = False
+else:
+    REALTIME_AVAILABLE = False
 
 class FaceAnimator:
     def __init__(self, display_manager):
@@ -33,11 +45,39 @@ class FaceAnimator:
         # Mouth shape cache
         self.mouth_shapes = {}
         
+        # Current face for smooth morphing
+        self._current_face = None
+        
+        # Initialize real-time face manipulator if available
+        self.realtime_manipulator = None
+        if USE_REALTIME_FACE_MANIPULATION and REALTIME_AVAILABLE:
+            try:
+                self.realtime_manipulator = RealtimeFaceManipulator()
+                # Load base face for manipulation
+                base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
+                if base_face_path.exists():
+                    success = self.realtime_manipulator.load_base_face(str(base_face_path))
+                    if success:
+                        self.logger.info("Real-time face manipulation enabled")
+                    else:
+                        self.logger.warning("Failed to load base face for manipulation, falling back to morphing")
+                        self.realtime_manipulator = None
+                else:
+                    self.logger.warning("No base face found for manipulation, falling back to morphing")
+                    self.realtime_manipulator = None
+            except Exception as e:
+                self.logger.warning(f"Real-time face manipulation setup failed: {e}, falling back to morphing")
+                self.realtime_manipulator = None
+        
         # Create base face if no assets found
         if not self.face_images:
             self._create_default_face()
         
-        self.logger.info("Face Animator initialized")
+        # Initialize current face
+        self._current_face = self.face_images.get('mouth_closed', self.face_images.get('base'))
+        
+        animation_type = "real-time manipulation" if self.realtime_manipulator else "smooth morphing"
+        self.logger.info(f"Face Animator initialized with {animation_type}")
     
     def _load_face_assets(self) -> Dict[str, np.ndarray]:
         """Load face image assets"""
@@ -204,26 +244,65 @@ class FaceAnimator:
             self.is_speaking = False
     
     async def _display_mouth_shape(self, mouth_shape: str, duration: float):
-        """Display a specific mouth shape for given duration"""
+        """Display mouth shape using real-time manipulation or smooth morphing"""
         try:
-            # Get face image with mouth shape
-            face_image = self.face_images.get(mouth_shape, self.face_images.get('base'))
-            
-            if face_image is not None:
-                # Add mystical effects
-                enhanced_face = self._add_mystical_effects(face_image)
+            if self.realtime_manipulator:
+                # Use real-time face manipulation (Option 4)
+                animated_face = await self.realtime_manipulator.animate_phoneme(mouth_shape, duration)
                 
-                # Display the face
-                self.display_manager.clear_screen()
-                self.display_manager.display_face(enhanced_face)
-                self.display_manager.update_display()
-            
-            # Hold for duration
-            if duration > 0:
-                await asyncio.sleep(duration)
+                # Scale and display
+                scaled_face = self._scale_face(animated_face)
+                self.display_manager.update_display(scaled_face)
                 
+                # Hold for duration
+                if duration > 0:
+                    await asyncio.sleep(duration)
+            else:
+                # Fallback to smooth morphing (Option 1)
+                await self._display_mouth_shape_morphing(mouth_shape, duration)
+            
         except Exception as e:
-            self.logger.error(f"Mouth shape display error: {e}")
+            self.logger.error(f"Error displaying mouth shape {mouth_shape}: {e}")
+            # Emergency fallback
+            await self._display_mouth_shape_morphing(mouth_shape, duration)
+    
+    async def _display_mouth_shape_morphing(self, mouth_shape: str, duration: float):
+        """Original smooth morphing method as fallback"""
+        try:
+            target_image = self.face_images.get(mouth_shape, self.face_images.get('mouth_closed'))
+            
+            if target_image is not None:
+                # Get current face for smooth transition
+                current_image = getattr(self, '_current_face', self.face_images.get('mouth_closed'))
+                
+                # Smooth morph between current and target over 0.1 seconds
+                morph_steps = 5
+                morph_duration = min(0.1, duration / 2)  # Quick transition
+                step_time = morph_duration / morph_steps
+                
+                for step in range(morph_steps + 1):
+                    alpha = step / morph_steps  # 0.0 to 1.0
+                    
+                    # Blend images for smooth transition
+                    blended = cv2.addWeighted(current_image, 1 - alpha, target_image, alpha, 0)
+                    
+                    # Scale and display
+                    scaled_face = self._scale_face(blended)
+                    self.display_manager.update_display(scaled_face)
+                    
+                    if step < morph_steps:
+                        await asyncio.sleep(step_time)
+                
+                # Hold the target shape for remaining duration
+                hold_time = duration - morph_duration
+                if hold_time > 0:
+                    await asyncio.sleep(hold_time)
+                
+                # Store current face for next transition
+                self._current_face = target_image.copy()
+            
+        except Exception as e:
+            self.logger.error(f"Error in morphing fallback for {mouth_shape}: {e}")
     
     def start_idle_animation(self):
         """Start idle breathing animation"""
@@ -345,11 +424,46 @@ class FaceAnimator:
             self.logger.error(f"Mystical tint error: {e}")
             return image
     
+    def _scale_face(self, face_image: np.ndarray) -> np.ndarray:
+        """Scale face image to display dimensions"""
+        try:
+            target_height = int(PROJECTOR_HEIGHT * FACE_SCALE)
+            target_width = int(PROJECTOR_WIDTH * FACE_SCALE)
+            
+            # Maintain aspect ratio
+            h, w = face_image.shape[:2]
+            aspect_ratio = w / h
+            
+            if target_width / target_height > aspect_ratio:
+                # Height is limiting factor
+                new_height = target_height
+                new_width = int(target_height * aspect_ratio)
+            else:
+                # Width is limiting factor
+                new_width = target_width
+                new_height = int(target_width / aspect_ratio)
+            
+            # Resize image
+            scaled = cv2.resize(face_image, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
+            
+            return scaled
+            
+        except Exception as e:
+            self.logger.error(f"Error scaling face: {e}")
+            return face_image
+    
     def cleanup(self):
         """Cleanup animator resources"""
-        self.idle_animation_running = False
-        self.is_speaking = False
-        self.logger.info("Face Animator cleaned up")
+        try:
+            self.is_speaking = False
+            self.idle_animation_running = False
+            
+            if self.realtime_manipulator:
+                self.realtime_manipulator.cleanup()
+            
+            self.logger.info("Face Animator cleaned up")
+        except Exception as e:
+            self.logger.error(f"Cleanup error: {e}")
 
 # Import random for idle animation
 import random 

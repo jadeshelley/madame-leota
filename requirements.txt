@@ -6,6 +6,11 @@ pyttsx3==2.90
 pygame==2.5.2
 pyaudio==0.2.11
 
+# Real-time face manipulation
+mediapipe==0.10.7
+opencv-python==4.8.1.78
+dlib==19.24.2
+
 # System utilities
 python-dotenv==1.0.0
 requests==2.31.0

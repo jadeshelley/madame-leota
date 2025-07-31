@@ -35,9 +35,6 @@ venv.bak/
 # Application specific
 cache/
 logs/
-assets/faces/*.png
-assets/faces/*.jpg
-assets/faces/*.jpeg
 
 # Audio cache
 *.wav
