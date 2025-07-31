@@ -9,7 +9,10 @@ print("🔍 Testing dlib installation...")
 try:
     import dlib
     print("✅ dlib imported successfully")
-    print(f"📍 dlib version: {dlib.version}")
+    try:
+        print(f"📍 dlib version: {dlib.version}")
+    except AttributeError:
+        print("📍 dlib version: (version info not available)")
 except ImportError as e:
     print(f"❌ dlib import failed: {e}")
     print("💡 Solution: pip install dlib")
