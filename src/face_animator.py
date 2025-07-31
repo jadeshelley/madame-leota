@@ -370,46 +370,29 @@ class FaceAnimator:
                 try:
                     print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display face...")
                     
-                    # 🔧 MOUTH FOCUS FIX: Crop to mouth area first, then scale
-                    # Original mouth center: (512, 1152), face: (1536, 1024, 3)
+                    # 🔧 FULL FACE DISPLAY: Show entire face scaled to fit screen
+                    # Original face: (1536, 1024, 3), mouth at (512, 1152)
                     import cv2
                     
-                    # Define crop area around mouth (show proper face context)
-                    crop_height = 800  # Show more of the face context
-                    crop_width = 600   # Keep reasonable width
+                    # Scale the entire face to fit screen nicely
+                    target_height = 600  # Good size for full face viewing
+                    scale_factor = target_height / face.shape[0]
+                    new_width = int(face.shape[1] * scale_factor)
+                    new_height = int(face.shape[0] * scale_factor)
                     
-                    mouth_y = 1152  # Original mouth Y coordinate
-                    mouth_x = 512   # Original mouth X coordinate
+                    scaled_face = cv2.resize(face, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
                     
-                    # Calculate crop bounds to center mouth in view
-                    y1 = max(0, mouth_y - crop_height // 2)  # Center mouth vertically
-                    y2 = min(face.shape[0], y1 + crop_height)
-                    x1 = max(0, mouth_x - crop_width // 2)   # Center mouth horizontally
-                    x2 = min(face.shape[1], x1 + crop_width)
+                    # Calculate where mouth will be in scaled image
+                    scaled_mouth_x = int(512 * scale_factor)
+                    scaled_mouth_y = int(1152 * scale_factor) 
                     
-                    # Adjust if we hit boundaries
-                    if y2 == face.shape[0]:
-                        y1 = max(0, y2 - crop_height)
-                    if x2 == face.shape[1]:
-                        x1 = max(0, x2 - crop_width)
+                    print(f"🔧 SCALE DEBUG: Original {face.shape} -> Scaled {scaled_face.shape}, scale_factor={scale_factor:.3f}")
+                    print(f"🎯 MOUTH DEBUG: Original mouth (512,1152) -> Scaled mouth (~{scaled_mouth_x},{scaled_mouth_y})")
+                    print(f"👁️ VIEW DEBUG: Full face displayed - look for mouth movement in lower portion")
                     
-                    # Crop the face to focus on mouth area with context
-                    mouth_crop = face[y1:y2, x1:x2]
-                    print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {mouth_crop.shape}, crop region: ({x1},{y1}) to ({x2},{y2})")
-                    print(f"🎯 MOUTH DEBUG: Mouth at ({mouth_x},{mouth_y}) should be at crop center (~{crop_width//2},{crop_height//2})")
-                    
-                    # Scale to fit screen nicely (not too big, not too small)
-                    target_height = 500  # Reasonable size for viewing
-                    scale_factor = target_height / mouth_crop.shape[0]
-                    new_width = int(mouth_crop.shape[1] * scale_factor)
-                    new_height = int(mouth_crop.shape[0] * scale_factor)
-                    
-                    scaled_mouth = cv2.resize(mouth_crop, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
-                    print(f"🔧 SCALE DEBUG: Cropped {mouth_crop.shape} -> Scaled {scaled_mouth.shape}, scale_factor={scale_factor:.3f}")
-                    
-                    # Center the scaled mouth crop on screen
-                    screen_center = (0, 0)  # Display at origin for now
-                    self.display_manager.display_image(scaled_mouth, screen_center)
+                    # Display the full scaled face  
+                    screen_center = (0, 0)  # Display at origin
+                    self.display_manager.display_image(scaled_face, screen_center)
                     
                     # 🔧 CRITICAL FIX: Actually update the display to show the changes!
                     self.display_manager.update_display()
