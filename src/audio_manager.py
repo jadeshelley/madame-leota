@@ -17,9 +17,29 @@ class AudioManager:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         
-        # Initialize pygame mixer for audio playback
-        pygame.mixer.pre_init(frequency=SAMPLE_RATE, size=-16, channels=CHANNELS, buffer=CHUNK_SIZE)
-        pygame.mixer.init()
+        # Initialize pygame mixer for audio playback with Pi-compatible settings
+        try:
+            print("🔊 AUDIO DEBUG: Attempting to initialize pygame mixer...")
+            # Try to force ALSA output
+            import os
+            os.environ['SDL_AUDIODRIVER'] = 'alsa'
+            
+            pygame.mixer.pre_init(
+                frequency=22050,  # Lower sample rate for Pi compatibility
+                size=-16,
+                channels=1,       # Mono for better Pi compatibility
+                buffer=512        # Smaller buffer for Pi
+            )
+            pygame.mixer.init()
+            print("✅ AUDIO DEBUG: pygame mixer initialized successfully")
+        except Exception as e:
+            print(f"❌ AUDIO DEBUG: pygame mixer init failed: {e}")
+            # Try fallback settings
+            try:
+                pygame.mixer.init()
+                print("✅ AUDIO DEBUG: pygame mixer initialized with fallback settings")
+            except Exception as e2:
+                print(f"❌ AUDIO DEBUG: All audio init failed: {e2}")
         
         # Set default volume to maximum
         self.set_volume(MASTER_VOLUME)

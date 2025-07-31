@@ -359,6 +359,10 @@ class FaceAnimator:
                 if len(audio_chunk) > 0:
                     deepfake_face = await self._generate_face_for_chunk(audio_chunk, frame_duration)
                     
+                    # Debug face generation
+                    if frame % 5 == 0:  # Every 5th frame
+                        print(f"🎭 ANIMATION DEBUG: Frame {frame}, audio chunk: {len(audio_chunk)} samples, face shape: {deepfake_face.shape if deepfake_face is not None else 'None'}")
+                    
                     # Display the frame
                     self.display_manager.clear_screen()
                     self.display_manager.display_face(deepfake_face)
@@ -400,6 +404,11 @@ class FaceAnimator:
             lip_width = self.audio_driven_face._map_frequency_to_lip_width(smoothed_frequency)
             lip_height = self.audio_driven_face._map_amplitude_to_lip_height(smoothed_amplitude)
             micro_movement = self.audio_driven_face._generate_micro_movement(speech_energy)
+            
+            # Debug facial parameters occasionally
+            import random
+            if random.random() < 0.1:  # 10% of the time
+                print(f"🎭 FACE PARAMS: jaw={jaw_drop:.2f}, lip_w={lip_width:.2f}, lip_h={lip_height:.2f}, amp={smoothed_amplitude:.3f}")
             
             # Generate face with these parameters
             deepfake_face = self.audio_driven_face._apply_deepfake_deformation(

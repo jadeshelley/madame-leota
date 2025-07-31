@@ -203,6 +203,7 @@ class MadameLeotaApp:
             print(f"✅ SPEAK DEBUG: TTS completed! Audio: {len(audio_data)} bytes, phonemes: {len(phonemes)}")
             self.logger.info(f"Generated audio: {len(audio_data)} bytes, phonemes: {len(phonemes)}")
             
+            print("🎭 SPEAK DEBUG: About to check animation system...")
             # Check what animation system is available - DEBUG LOGGING
             has_audio_driven = hasattr(self.face_animator, 'animate_speaking_with_audio') and self.face_animator.audio_driven_face
             
