@@ -93,9 +93,13 @@ class MadameLeotaApp:
             self.logger.info("🎭 Initializing Face Animator...")
             self.face_animator = FaceAnimator(self.display_manager)
             print("✅ CONSTRUCTOR: FaceAnimator created")
+            print("📝 DEBUG: About to log Face Animator initialized...")
             self.logger.info("✅ Face Animator initialized")
+            print("✅ DEBUG: Face Animator logging completed!")
             
+            print("🎉 DEBUG: About to log all components initialized...")
             self.logger.info("🎉 All components initialized successfully!")
+            print("✅ DEBUG: All components logging completed!")
             
         except Exception as e:
             self.logger.error(f"❌ Failed to initialize component: {e}")
@@ -103,11 +107,14 @@ class MadameLeotaApp:
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             raise
         
+        print("🔧 DEBUG: About to set up signal handlers...")
         # Set up signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
+        print("✅ DEBUG: Signal handlers set up!")
         
         self.running = False
+        print("🏁 DEBUG: MadameLeotaApp.__init__() completed successfully!")
         
     async def initialize(self):
         """Run post-initialization setup and tests"""
