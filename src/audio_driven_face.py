@@ -353,19 +353,17 @@ class AudioDrivenFace:
     def _apply_deepfake_deformation(self, face_image: np.ndarray, 
                                   jaw_drop: float, lip_width: float, 
                                   lip_height: float, micro_movement: Tuple[float, float]) -> np.ndarray:
-        """Apply deepfake-like facial deformation"""
+        """Apply realistic mouth deformation like a deepfake video"""
         try:
             h, w = face_image.shape[:2]
             
-            if self.mouth_center is None:
-                return face_image
-            
+            # Get mouth center and micro movements
             mouth_x, mouth_y = self.mouth_center
             offset_x, offset_y = micro_movement
             
-            # Define mouth region (larger for more dramatic effect)
-            mouth_width = int(w * 0.18)
-            mouth_height = int(h * 0.15)
+            # Define mouth region for deformation
+            mouth_width = int(w * 0.25)  # Larger region for better deformation
+            mouth_height = int(w * 0.20)
             
             # Calculate mouth region bounds
             x1 = max(0, mouth_x - mouth_width // 2)
@@ -373,71 +371,168 @@ class AudioDrivenFace:
             y1 = max(0, mouth_y - mouth_height // 2)
             y2 = min(h, mouth_y + mouth_height // 2)
             
+            if x2 <= x1 or y2 <= y1:
+                return face_image
+            
+            # Create control points for mouth deformation
+            mouth_region_w = x2 - x1
+            mouth_region_h = y2 - y1
+            center_x = mouth_region_w // 2
+            center_y = mouth_region_h // 2
+            
+            # Original control points (mouth closed/neutral)
+            src_points = np.array([
+                # Upper lip points
+                [center_x - mouth_region_w//4, center_y - mouth_region_h//6],    # Left upper
+                [center_x, center_y - mouth_region_h//8],                       # Center upper
+                [center_x + mouth_region_w//4, center_y - mouth_region_h//6],   # Right upper
+                
+                # Lower lip points  
+                [center_x - mouth_region_w//4, center_y + mouth_region_h//6],   # Left lower
+                [center_x, center_y + mouth_region_h//8],                       # Center lower
+                [center_x + mouth_region_w//4, center_y + mouth_region_h//6],   # Right lower
+                
+                # Mouth corners
+                [center_x - mouth_region_w//3, center_y],                       # Left corner
+                [center_x + mouth_region_w//3, center_y],                       # Right corner
+            ], dtype=np.float32)
+            
+            # Deformed control points based on audio analysis
+            dst_points = src_points.copy()
+            
+            # Apply jaw drop (mouth opening)
+            jaw_movement = int(jaw_drop * 0.8)  # Scale down for realistic movement
+            
+            # Move lower lip down for jaw drop
+            dst_points[3, 1] += jaw_movement  # Left lower
+            dst_points[4, 1] += jaw_movement  # Center lower  
+            dst_points[5, 1] += jaw_movement  # Right lower
+            
+            # Apply lip width changes (wider/narrower mouth)
+            width_factor = (lip_width - 1.0) * 0.5  # Scale for subtle effect
+            width_adjustment = int(mouth_region_w * width_factor * 0.3)
+            
+            # Adjust corner positions for width
+            dst_points[6, 0] -= width_adjustment  # Left corner
+            dst_points[7, 0] += width_adjustment  # Right corner
+            
+            # Adjust upper and lower lip corners
+            dst_points[0, 0] -= width_adjustment // 2  # Left upper
+            dst_points[2, 0] += width_adjustment // 2  # Right upper
+            dst_points[3, 0] -= width_adjustment // 2  # Left lower
+            dst_points[5, 0] += width_adjustment // 2  # Right lower
+            
+            # Apply lip height changes (pucker effect)
+            height_factor = (lip_height - 1.0) * 0.3
+            height_adjustment = int(mouth_region_h * height_factor * 0.4)
+            
+            # Move upper lip points
+            dst_points[0, 1] -= height_adjustment // 2  # Left upper
+            dst_points[1, 1] -= height_adjustment      # Center upper
+            dst_points[2, 1] -= height_adjustment // 2  # Right upper
+            
+            # Apply micro movements for natural variation
+            for i in range(len(dst_points)):
+                dst_points[i, 0] += offset_x * 0.5
+                dst_points[i, 1] += offset_y * 0.5
+            
             # Extract mouth region
             mouth_region = face_image[y1:y2, x1:x2].copy()
             
-            if mouth_region.size == 0:
-                return face_image
-            
-            # Apply sophisticated deformations for deepfake-like result
-            mouth_h, mouth_w = mouth_region.shape[:2]
-            center_x, center_y = mouth_w // 2, mouth_h // 2
-            
-            # Combined transformation matrix for realistic movement
-            transform_matrix = np.array([
-                [lip_width, 0, center_x * (1 - lip_width) + offset_x],
-                [0, lip_height, center_y * (1 - lip_height) + jaw_drop + offset_y]
-            ], dtype=np.float32)
-            
-            # Apply transformation with high-quality interpolation
-            transformed_mouth = cv2.warpAffine(
-                mouth_region, transform_matrix, (mouth_w, mouth_h),
-                flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT
+            # Create deformation using piecewise affine transformation
+            deformed_mouth = self._apply_piecewise_affine_transform(
+                mouth_region, src_points, dst_points
             )
             
             # Create sophisticated blending mask
-            mask = self._create_deepfake_blend_mask(mouth_region.shape[:2])
+            mask = self._create_video_blend_mask(mouth_region.shape[:2])
             
-            # Apply enhanced blending for seamless integration
+            # Blend deformed mouth back into face
             result_face = face_image.copy()
             
-            # Multi-layer blending for more realistic result
+            # Multi-channel blending for seamless integration
             for c in range(3):
                 result_face[y1:y2, x1:x2, c] = (
-                    mask * transformed_mouth[:, :, c] + 
+                    mask * deformed_mouth[:, :, c] + 
                     (1 - mask) * result_face[y1:y2, x1:x2, c]
                 )
-            
-            # Add subtle overall face adjustments for more realism
-            result_face = self._add_subtle_face_effects(result_face, jaw_drop, lip_height)
             
             return result_face.astype(np.uint8)
             
         except Exception as e:
-            self.logger.error(f"Error in deepfake deformation: {e}")
+            self.logger.error(f"Error in video-like mouth deformation: {e}")
             return face_image
     
-    def _create_deepfake_blend_mask(self, shape: Tuple[int, int]) -> np.ndarray:
-        """Create sophisticated blending mask for seamless deepfake-like integration"""
+    def _apply_piecewise_affine_transform(self, image: np.ndarray, src_points: np.ndarray, dst_points: np.ndarray) -> np.ndarray:
+        """Apply piecewise affine transformation for realistic mouth deformation"""
+        try:
+            h, w = image.shape[:2]
+            
+            # Create triangulation for piecewise transformation
+            # Add corner points to ensure full coverage
+            all_src_points = np.vstack([
+                src_points,
+                [[0, 0], [w-1, 0], [0, h-1], [w-1, h-1]]  # Image corners
+            ])
+            
+            all_dst_points = np.vstack([
+                dst_points,
+                [[0, 0], [w-1, 0], [0, h-1], [w-1, h-1]]  # Keep corners fixed
+            ])
+            
+            # Simple grid-based warping for Pi compatibility
+            result = image.copy()
+            
+            # Create a grid of points for smooth deformation
+            grid_size = 20
+            for y in range(0, h, grid_size):
+                for x in range(0, w, grid_size):
+                    # Find closest control point and apply its transformation
+                    distances = np.sum((all_src_points - [x, y])**2, axis=1)
+                    closest_idx = np.argmin(distances)
+                    
+                    if distances[closest_idx] < (grid_size * 2)**2:  # Within influence
+                        # Calculate transformation vector
+                        transform_vector = all_dst_points[closest_idx] - all_src_points[closest_idx]
+                        
+                        # Apply weighted transformation to nearby pixels
+                        y_end = min(y + grid_size, h)
+                        x_end = min(x + grid_size, w)
+                        
+                        for py in range(y, y_end):
+                            for px in range(x, x_end):
+                                # Calculate weight based on distance
+                                dist_to_point = np.sqrt((px - x)**2 + (py - y)**2)
+                                weight = max(0, 1 - dist_to_point / grid_size)
+                                
+                                # Apply weighted transformation
+                                new_x = int(px + transform_vector[0] * weight)
+                                new_y = int(py + transform_vector[1] * weight)
+                                
+                                # Bounds checking
+                                if 0 <= new_x < w and 0 <= new_y < h:
+                                    result[py, px] = image[new_y, new_x]
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error in piecewise affine transform: {e}")
+            return image
+    
+    def _create_video_blend_mask(self, shape: Tuple[int, int]) -> np.ndarray:
+        """Create video-like blending mask for seamless mouth integration"""
         h, w = shape
         
-        # Create elliptical mask with soft gradient
+        # Create soft elliptical mask that covers the deformed area
         y, x = np.ogrid[:h, :w]
         center_x, center_y = w // 2, h // 2
         
-        # Multiple elliptical layers for smooth blending
-        mask1 = ((x - center_x) / (w * 0.45))**2 + ((y - center_y) / (h * 0.45))**2
-        mask2 = ((x - center_x) / (w * 0.35))**2 + ((y - center_y) / (h * 0.35))**2
+        # Large soft mask for seamless blending
+        mask = ((x - center_x) / (w * 0.4))**2 + ((y - center_y) / (h * 0.4))**2
+        mask = 1.0 - np.clip(mask, 0, 1)
         
-        # Combine masks for smooth falloff
-        outer_mask = 1.0 - np.clip(mask1, 0, 1)
-        inner_mask = 1.0 - np.clip(mask2, 0, 1)
-        
-        # Blend the masks
-        combined_mask = outer_mask * 0.7 + inner_mask * 0.3
-        
-        # Apply strong Gaussian blur for seamless blending
-        blurred_mask = cv2.GaussianBlur(combined_mask.astype(np.float32), (21, 21), 0)
+        # Apply strong blur for video-like seamless blending
+        blurred_mask = cv2.GaussianBlur(mask.astype(np.float32), (31, 31), 0)
         
         return np.clip(blurred_mask, 0, 1)
     
