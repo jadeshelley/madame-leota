@@ -369,13 +369,24 @@ class FaceAnimator:
                 # 🔍 DISPLAY DEBUG: Show the face on screen
                 try:
                     print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display face...")
-                    # Center the face on screen (0, 0) means top-left, but let's center it
-                    screen_center = (0, 0)  # For now, display at origin - can be adjusted
-                    self.display_manager.display_image(face, screen_center)
+                    
+                    # 🔧 SCALE FIX: Scale face to fit screen so mouth is visible  
+                    # Face is 1536x1024, screen is 1280x720, mouth at (512, 1152)
+                    import cv2
+                    scale_factor = 720 / face.shape[0]  # Scale to fit screen height
+                    new_width = int(face.shape[1] * scale_factor)
+                    new_height = int(face.shape[0] * scale_factor)
+                    
+                    scaled_face = cv2.resize(face, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+                    print(f"🔧 SCALE DEBUG: Original {face.shape} -> Scaled {scaled_face.shape}, scale_factor={scale_factor:.3f}")
+                    
+                    # Center the scaled face on screen
+                    screen_center = (0, 0)  # Display at origin for now
+                    self.display_manager.display_image(scaled_face, screen_center)
                     
                     # 🔧 CRITICAL FIX: Actually update the display to show the changes!
                     self.display_manager.update_display()
-                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Face displayed and screen updated successfully")
+                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Scaled face displayed and screen updated successfully")
                 except Exception as e:
                     print(f"❌ DISPLAY DEBUG: Frame {frame} - Display failed: {e}")
                     import traceback
