@@ -26,7 +26,7 @@ class DisplayManager:
         self.screen_width = width
         self.screen_height = height
         self.fullscreen = fullscreen
-        self.background_color = BACKGROUND_COLOR
+        self.background_color = (0, 0, 0)  # Black background as default
         
         # Face display dimensions for scaling
         self.face_display_width = int(width * 0.6)  # 60% of screen width
