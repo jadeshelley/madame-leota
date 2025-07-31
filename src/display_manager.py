@@ -11,8 +11,16 @@ import pygame
 from config import *
 
 class DisplayManager:
-    def __init__(self, width: int = SCREEN_WIDTH, height: int = SCREEN_HEIGHT, fullscreen: bool = FULLSCREEN):
+    def __init__(self, width: int = None, height: int = None, fullscreen: bool = None):
         self.logger = logging.getLogger(__name__)
+        
+        # Use config values as defaults
+        if width is None:
+            width = PROJECTOR_WIDTH
+        if height is None:
+            height = PROJECTOR_HEIGHT  
+        if fullscreen is None:
+            fullscreen = FULLSCREEN
         
         # Display settings
         self.screen_width = width
