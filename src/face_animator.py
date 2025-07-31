@@ -348,34 +348,36 @@ class FaceAnimator:
             
             # Real-time animation loop
             for frame in range(total_frames):
-                if not self.is_speaking:  # Allow interruption
+                if frame >= len(audio_array):
                     break
                 
-                frame_start_time = time.time()
-                
                 # Extract audio chunk for this frame
-                start_sample = frame * samples_per_frame
-                end_sample = min((frame + 1) * samples_per_frame, len(audio_array))
-                audio_chunk = audio_array[start_sample:end_sample]
+                start_idx = frame * samples_per_frame
+                end_idx = min(start_idx + samples_per_frame, len(audio_array))
+                audio_chunk = audio_array[start_idx:end_idx]
                 
-                # Generate face for this audio chunk
-                if len(audio_chunk) > 0:
-                    deepfake_face = await self._generate_face_for_chunk(audio_chunk, frame_duration)
-                    
-                    # Debug face generation
-                    if frame % 5 == 0:  # Every 5th frame
-                        print(f"🎭 ANIMATION DEBUG: Frame {frame}, audio chunk: {len(audio_chunk)} samples, face shape: {deepfake_face.shape if deepfake_face is not None else 'None'}")
-                    
-                    # Display the frame
-                    self.display_manager.clear_screen()
-                    self.display_manager.display_face(deepfake_face)
-                    self.display_manager.update_display()
-                
-                # Maintain frame rate
-                elapsed = time.time() - frame_start_time
-                sleep_time = max(0, frame_duration - elapsed)
-                if sleep_time > 0:
-                    await asyncio.sleep(sleep_time)
+                if len(audio_chunk) == 0:
+                    break
+            
+                # Generate face for this chunk
+                face = self._generate_face_for_chunk(audio_chunk)
+            
+                # Debug output every 5 frames
+                if frame % 5 == 0:
+                    print(f"🎭 ANIMATION DEBUG: Frame {frame}, audio chunk: {len(audio_chunk)} samples, face shape: {face.shape}")
+            
+                # 🔍 DISPLAY DEBUG: Show the face on screen
+                try:
+                    print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display face...")
+                    self.display_manager.display_image(face)
+                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Face displayed successfully")
+                except Exception as e:
+                    print(f"❌ DISPLAY DEBUG: Frame {frame} - Display failed: {e}")
+                    import traceback
+                    print(f"❌ DISPLAY TRACEBACK: {traceback.format_exc()}")
+            
+                # Control frame rate (15 FPS)
+                await asyncio.sleep(1/15)
             
             # Return to idle
             self.is_speaking = False
@@ -387,43 +389,26 @@ class FaceAnimator:
             # Fallback to regular animation
             await self.animate_speaking(phonemes)
     
-    async def _generate_face_for_chunk(self, audio_chunk: np.ndarray, duration: float) -> np.ndarray:
+    def _generate_face_for_chunk(self, audio_chunk: np.ndarray) -> np.ndarray:
         """Generate face for a single audio chunk"""
         try:
-            if self.audio_driven_face.base_face is None:
-                return self.audio_driven_face.base_face
-            
-            # Analyze this chunk
-            amplitude = self.audio_driven_face._analyze_amplitude_simple(audio_chunk)
-            dominant_freq = self.audio_driven_face._analyze_frequency_simple(audio_chunk)
-            speech_energy = self.audio_driven_face._analyze_speech_energy(audio_chunk)
-            
-            # Smooth features over time
-            smoothed_amplitude = self.audio_driven_face._smooth_feature(amplitude, self.audio_driven_face.amplitude_history)
-            smoothed_frequency = self.audio_driven_face._smooth_feature(dominant_freq, self.audio_driven_face.frequency_history)
-            
-            # Map to facial parameters
-            jaw_drop = self.audio_driven_face._map_amplitude_to_jaw(smoothed_amplitude)
-            lip_width = self.audio_driven_face._map_frequency_to_lip_width(smoothed_frequency)
-            lip_height = self.audio_driven_face._map_amplitude_to_lip_height(smoothed_amplitude)
-            micro_movement = self.audio_driven_face._generate_micro_movement(speech_energy)
-            
-            # Debug facial parameters occasionally
-            import random
-            if random.random() < 0.1:  # 10% of the time
-                print(f"🎭 FACE PARAMS: jaw={jaw_drop:.2f}, lip_w={lip_width:.2f}, lip_h={lip_height:.2f}, amp={smoothed_amplitude:.3f}")
-            
-            # Generate face with these parameters
-            deepfake_face = self.audio_driven_face._apply_deepfake_deformation(
-                self.audio_driven_face.base_face.copy(),
-                jaw_drop, lip_width, lip_height, micro_movement
-            )
-            
-            return deepfake_face
-            
+            # Use audio-driven face to generate the face
+            if self.audio_driven_face and hasattr(self.audio_driven_face, 'generate_face_from_audio'):
+                # Convert audio chunk back to bytes for the audio_driven_face system
+                audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
+                face = self.audio_driven_face.generate_face_from_audio(audio_bytes, duration=len(audio_chunk)/22050)
+                return face
+            else:
+                # Fallback to current face
+                self.logger.warning("Audio-driven face not available, using static face")
+                return self._current_face.copy() if self._current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
+                
         except Exception as e:
             self.logger.error(f"Error generating face for chunk: {e}")
-            return self.audio_driven_face.base_face if self.audio_driven_face else self.face_images.get('mouth_closed')
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            # Return current face as fallback
+            return self._current_face.copy() if self._current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
     
     async def _display_mouth_shape(self, mouth_shape: str, duration: float):
         """Display mouth shape using real-time manipulation or smooth morphing"""

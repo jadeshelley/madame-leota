@@ -235,25 +235,34 @@ class AudioDrivenFace:
             self.logger.error(f"Raw conversion error: {e}")
             return np.array([])
     
-    def _analyze_amplitude_simple(self, audio_array: np.ndarray) -> float:
-        """Simple amplitude analysis without external libraries"""
-        if len(audio_array) == 0:
-            print("🔊 AMPLITUDE ANALYSIS: Empty audio array")
+    def _analyze_amplitude_simple(self, audio_chunk: np.ndarray) -> float:
+        """Simple amplitude analysis for Pi compatibility"""
+        if len(audio_chunk) == 0:
             return 0.0
         
-        # RMS amplitude
-        rms = np.sqrt(np.mean(audio_array ** 2))
+        # Calculate RMS (Root Mean Square) amplitude
+        rms = np.sqrt(np.mean(audio_chunk.astype(np.float32) ** 2))
         
-        # Normalize and enhance for better visual response
-        normalized = np.clip(rms * 8, 0.0, 1.0)
+        # Debug output (occasionally)
+        if hasattr(self, '_debug_counter'):
+            self._debug_counter += 1
+        else:
+            self._debug_counter = 0
+            
+        if self._debug_counter % 10 == 0:  # Every 10th call
+            print(f"🔊 AMPLITUDE: chunk_size={len(audio_chunk)}, rms={rms:.4f}")
         
-        # Apply power curve for more natural jaw movement
-        result = normalized ** 0.7
+        # 🔧 FIX: Better normalization for more dynamic movement
+        # Instead of normalizing to max, use a more reasonable scale
+        # Most audio will be between 0.0 and 0.8, so let's scale accordingly
+        normalized = np.clip(rms / 0.6, 0.0, 1.0)  # Scale by 0.6 instead of max
         
-        # Debug occasionally
-        import random
-        if random.random() < 0.05:  # 5% of the time
-            print(f"🔊 AMPLITUDE: chunk_size={len(audio_array)}, rms={rms:.4f}, normalized={normalized:.4f}, result={result:.4f}")
+        # Apply a curve to make movements more dramatic
+        # Use a power curve to enhance smaller movements
+        result = normalized ** 0.7  # Power curve for better dynamics
+        
+        if self._debug_counter % 10 == 0:  # Every 10th call
+            print(f"🔊 AMPLITUDE: normalized={normalized:.4f}, result={result:.4f}")
         
         return result
     
