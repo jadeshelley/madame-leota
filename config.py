@@ -14,6 +14,11 @@ CHUNK_SIZE = 1024
 AUDIO_FORMAT = 16  # 16-bit
 CHANNELS = 1  # Mono
 
+# Volume Settings (0.0 to 1.0)
+MASTER_VOLUME = 0.95      # Main volume (very loud!)
+TTS_VOLUME = 0.9          # Text-to-speech volume
+EFFECT_VOLUME = 0.8       # Sound effects volume
+
 # Speech Recognition
 RECOGNITION_TIMEOUT = 5  # seconds
 RECOGNITION_PHRASE_TIMEOUT = 1  # seconds

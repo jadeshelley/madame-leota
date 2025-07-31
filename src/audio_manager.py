@@ -21,11 +21,14 @@ class AudioManager:
         pygame.mixer.pre_init(frequency=SAMPLE_RATE, size=-16, channels=CHANNELS, buffer=CHUNK_SIZE)
         pygame.mixer.init()
         
+        # Set default volume to maximum
+        self.set_volume(MASTER_VOLUME)
+        
         # Initialize PyAudio for recording
         self.audio = pyaudio.PyAudio()
         self.recording_stream = None
         
-        self.logger.info("Audio Manager initialized")
+        self.logger.info(f"Audio Manager initialized with volume: {MASTER_VOLUME}")
     
     def test_audio(self):
         """Test audio system"""

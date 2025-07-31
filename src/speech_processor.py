@@ -48,7 +48,7 @@ class SpeechProcessor:
                 self.tts_engine.setProperty('voice', voices[TTS_VOICE_INDEX].id)
             
             self.tts_engine.setProperty('rate', TTS_RATE)
-            self.tts_engine.setProperty('volume', 0.9)
+            self.tts_engine.setProperty('volume', TTS_VOLUME)  # Use config volume
             
         except Exception as e:
             self.logger.warning(f"TTS setup warning: {e}")
