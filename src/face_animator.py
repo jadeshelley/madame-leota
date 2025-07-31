@@ -106,8 +106,10 @@ class FaceAnimator:
                 self.logger.info(f"📁 Looking for base face at: {base_face_path}")
                 
                 if base_face_path.exists():
+                    print("✅ DEBUG: Base face file found, about to load...")
                     self.logger.info("✅ Base face file found, loading...")
                     success = self.audio_driven_face.load_base_face(str(base_face_path))
+                    print("✅ DEBUG: Base face loading completed!")
                     if success:
                         self.logger.info("🎭 Audio-driven deepfake-like face manipulation enabled!")
                     else:
@@ -126,16 +128,22 @@ class FaceAnimator:
             self.logger.warning("⚠️  Audio-driven face not available - will use fallback animation")
         
         # Create base face if no assets found
+        print("🔍 DEBUG: Checking if face assets need to be created...")
         if not self.face_images:
+            print("⚠️ DEBUG: No face assets found, creating default...")
             self._create_default_face()
         
         # Initialize current face
+        print("🎭 DEBUG: Setting up current face...")
         self._current_face = self.face_images.get('mouth_closed', self.face_images.get('base'))
+        print("✅ DEBUG: Current face initialized!")
         
         animation_type = "audio-driven deepfake-like" if self.audio_driven_face else \
                          "real-time manipulation" if self.realtime_manipulator else \
                          "enhanced morphing"
+        print(f"🎬 DEBUG: About to finish FaceAnimator init with: {animation_type}")
         self.logger.info(f"🎬 Face Animator initialized with: {animation_type}")
+        print("🎯 DEBUG: FaceAnimator.__init__() completed successfully!")
     
     def _load_face_assets(self) -> Dict[str, np.ndarray]:
         """Load face image assets"""
