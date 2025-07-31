@@ -280,19 +280,33 @@ class FaceAnimator:
     async def animate_speaking_with_audio(self, audio_data: bytes, phonemes: List[dict]):
         """Animate speaking using audio-driven face manipulation for deepfake-like results"""
         try:
+            self.logger.info("animate_speaking_with_audio called")
+            
             if not self.audio_driven_face:
+                self.logger.warning("No audio_driven_face available, falling back to phoneme animation")
                 # Fallback to regular phoneme-based animation
                 await self.animate_speaking(phonemes)
                 return
+            
+            self.logger.info(f"Using audio-driven face manipulation with {len(audio_data)} bytes of audio")
             
             self.is_speaking = True
             self.current_state = "speaking"
             
             # Calculate total duration
             total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
+            self.logger.info(f"Total duration: {total_duration} seconds")
             
             # Generate deepfake-like face from audio
+            self.logger.info("Generating deepfake face from audio...")
             deepfake_face = await self.audio_driven_face.generate_face_from_audio(audio_data, total_duration)
+            
+            if deepfake_face is None:
+                self.logger.error("Deepfake face generation returned None")
+                await self.animate_speaking(phonemes)
+                return
+            
+            self.logger.info(f"Generated deepfake face shape: {deepfake_face.shape}")
             
             # Display the result
             self.display_manager.clear_screen()
@@ -308,6 +322,7 @@ class FaceAnimator:
             
         except Exception as e:
             self.logger.error(f"Error in audio-driven speaking animation: {e}")
+            self.logger.error(f"Exception details: {type(e).__name__}: {str(e)}")
             # Fallback to regular animation
             await self.animate_speaking(phonemes)
     

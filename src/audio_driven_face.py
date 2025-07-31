@@ -63,13 +63,18 @@ class AudioDrivenFace:
     async def generate_face_from_audio(self, audio_data: bytes, duration: float) -> np.ndarray:
         """Generate deepfake-like face animation from audio data"""
         try:
+            self.logger.info(f"generate_face_from_audio called with {len(audio_data)} bytes, duration {duration}")
+            
             if self.base_face is None:
+                self.logger.error("Base face is None!")
                 return self.base_face
             
             # Convert audio bytes to numpy array
             audio_array = self._bytes_to_audio_array(audio_data)
+            self.logger.info(f"Converted to audio array: {len(audio_array)} samples")
             
             if len(audio_array) == 0:
+                self.logger.warning("Audio array is empty")
                 return self.base_face
             
             # Analyze audio features (simplified for Pi)
@@ -77,9 +82,13 @@ class AudioDrivenFace:
             dominant_freq = self._analyze_frequency_simple(audio_array)
             speech_energy = self._analyze_speech_energy(audio_array)
             
+            self.logger.info(f"Audio analysis - amplitude: {amplitude:.3f}, freq: {dominant_freq:.3f}, energy: {speech_energy:.3f}")
+            
             # Smooth features over time for natural movement
             smoothed_amplitude = self._smooth_feature(amplitude, self.amplitude_history)
             smoothed_frequency = self._smooth_feature(dominant_freq, self.frequency_history)
+            
+            self.logger.info(f"Smoothed - amplitude: {smoothed_amplitude:.3f}, freq: {smoothed_frequency:.3f}")
             
             # Map audio features to facial parameters
             jaw_drop = self._map_amplitude_to_jaw(smoothed_amplitude)
@@ -87,16 +96,20 @@ class AudioDrivenFace:
             lip_height = self._map_amplitude_to_lip_height(smoothed_amplitude)
             micro_movement = self._generate_micro_movement(speech_energy)
             
+            self.logger.info(f"Face params - jaw: {jaw_drop:.1f}, width: {lip_width:.3f}, height: {lip_height:.3f}, movement: {micro_movement}")
+            
             # Generate deepfake-like face with these parameters
             deepfake_face = self._apply_deepfake_deformation(
                 self.base_face.copy(),
                 jaw_drop, lip_width, lip_height, micro_movement
             )
             
+            self.logger.info(f"Generated deepfake face with shape: {deepfake_face.shape}")
             return deepfake_face
             
         except Exception as e:
             self.logger.error(f"Error in deepfake face generation: {e}")
+            self.logger.error(f"Exception details: {type(e).__name__}: {str(e)}")
             return self.base_face
     
     def _bytes_to_audio_array(self, audio_data: bytes) -> np.ndarray:

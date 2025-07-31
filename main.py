@@ -127,15 +127,22 @@ class MadameLeotaApp:
             
             # Generate audio and phoneme data for lip sync
             audio_data, phonemes = await self.speech_processor.text_to_speech_with_phonemes(text)
+            self.logger.info(f"Generated audio: {len(audio_data)} bytes, phonemes: {len(phonemes)}")
+            
+            # Check what animation system is available
+            has_audio_driven = hasattr(self.face_animator, 'animate_speaking_with_audio') and self.face_animator.audio_driven_face
+            self.logger.info(f"Audio-driven face available: {has_audio_driven}")
             
             # Start deepfake-like speaking animation with audio analysis
-            if hasattr(self.face_animator, 'animate_speaking_with_audio') and self.face_animator.audio_driven_face:
+            if has_audio_driven:
                 # Use audio-driven deepfake-like animation (most realistic)
+                self.logger.info("Using audio-driven deepfake animation")
                 animation_task = asyncio.create_task(
                     self.face_animator.animate_speaking_with_audio(audio_data, phonemes)
                 )
             else:
                 # Fallback to phoneme-based animation
+                self.logger.info("Using fallback phoneme-based animation")
                 animation_task = asyncio.create_task(
                     self.face_animator.animate_speaking(phonemes)
                 )
@@ -153,6 +160,7 @@ class MadameLeotaApp:
             
         except Exception as e:
             self.logger.error(f"Error speaking response: {e}")
+            self.logger.error(f"Exception details: {type(e).__name__}: {str(e)}")
     
     async def shutdown(self):
         """Cleanup and shutdown"""
