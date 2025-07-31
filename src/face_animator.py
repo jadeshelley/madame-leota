@@ -53,10 +53,38 @@ class FaceAnimator:
         self.is_speaking = False
         self.idle_animation_running = False
         
+        # Initialize different animation systems based on config
+        self.dlib_face_animator = None
+        self.audio_driven_face = None
+        self.current_face = None
+        
+        # Try to initialize dlib facial landmarks first (most accurate)
+        try:
+            from src.dlib_face_animator import DlibFaceAnimator
+            self.dlib_face_animator = DlibFaceAnimator()
+            print("✅ DLIB: Facial landmark system initialized")
+            self.logger.info("✅ dlib facial landmark system initialized")
+        except Exception as e:
+            print(f"⚠️ DLIB: Failed to initialize dlib system: {e}")
+            self.logger.warning(f"Could not initialize dlib system: {e}")
+        
+        # Fallback to audio-driven system
+        if not self.dlib_face_animator:
+            if USE_AUDIO_DRIVEN_FACE:
+                try:
+                    from src.audio_driven_face import AudioDrivenFace
+                    self.audio_driven_face = AudioDrivenFace()
+                    print("✅ FALLBACK: Audio-driven face system initialized")
+                    self.logger.info("✅ Audio-driven face system initialized")
+                except Exception as e:
+                    print(f"⚠️ FALLBACK: Audio-driven initialization failed: {e}")
+                    self.logger.warning(f"Audio-driven face initialization failed: {e}")
+        
         # Load face assets
-        print("📁 DEBUG: About to load face assets...")
-        self.face_images = self._load_face_assets()
-        print("✅ DEBUG: Face assets loaded!")
+        self._load_face_assets()
+        
+        print(f"🎬 ANIMATOR: Animation system ready - dlib: {self.dlib_face_animator is not None}, audio-driven: {self.audio_driven_face is not None}")
+        self.logger.info(f"Face animator initialized with systems - dlib: {self.dlib_face_animator is not None}, audio-driven: {self.audio_driven_face is not None}")
         
         # Animation timing
         self.animation_start_time = 0
@@ -145,25 +173,51 @@ class FaceAnimator:
         self.logger.info(f"🎬 Face Animator initialized with: {animation_type}")
         print("🎯 DEBUG: FaceAnimator.__init__() completed successfully!")
     
-    def _load_face_assets(self) -> Dict[str, np.ndarray]:
-        """Load face image assets"""
-        face_images = {}
-        assets_path = Path(FACE_ASSETS_DIR)
-        
+    def _load_face_assets(self):
+        """Load face images for animation"""
         try:
-            if assets_path.exists():
-                for image_file in assets_path.glob("*.png"):
-                    image_name = image_file.stem
-                    image = cv2.imread(str(image_file), cv2.IMREAD_COLOR)
-                    if image is not None:
-                        face_images[image_name] = image
-                        self.logger.debug(f"Loaded face asset: {image_name}")
+            # Load base face for dlib system
+            base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
             
-            return face_images
+            if self.dlib_face_animator and base_face_path.exists():
+                print(f"🎭 DLIB: Loading base face from {base_face_path}")
+                if self.dlib_face_animator.load_base_face(str(base_face_path)):
+                    print("✅ DLIB: Base face loaded with facial landmarks detected")
+                    self.current_face = self.dlib_face_animator.base_face.copy()
+                    return
+                else:
+                    print("❌ DLIB: Failed to load base face, falling back to audio-driven")
+                    self.dlib_face_animator = None
             
+            # Fallback to audio-driven face system
+            if self.audio_driven_face and base_face_path.exists():
+                print(f"🎭 AUDIO-DRIVEN: Loading base face from {base_face_path}")
+                if self.audio_driven_face.load_base_face(str(base_face_path)):
+                    print("✅ AUDIO-DRIVEN: Base face loaded")
+                    self.current_face = self.audio_driven_face.base_face.copy()
+                    return
+            
+            # Final fallback - load traditional face images
+            print("⚠️ FALLBACK: Loading traditional face images")
+            self.face_images = {}
+            for face_type in ['base', 'mouth_closed', 'mouth_open', 'mouth_wide']:
+                face_path = Path(FACE_ASSETS_DIR) / f"{face_type}.jpg"
+                if face_path.exists():
+                    face_image = cv2.imread(str(face_path))
+                    if face_image is not None:
+                        self.face_images[face_type] = face_image
+                        print(f"✅ TRADITIONAL: Loaded {face_type}")
+            
+            # Set current face from traditional images
+            if hasattr(self, 'face_images') and self.face_images:
+                self.current_face = self.face_images.get('mouth_closed', self.face_images.get('base'))
+                print(f"✅ TRADITIONAL: Using {len(self.face_images)} face images")
+            else:
+                print("❌ ERROR: No face assets could be loaded!")
+                
         except Exception as e:
             self.logger.error(f"Error loading face assets: {e}")
-            return {}
+            print(f"❌ ERROR: Failed to load face assets: {e}")
     
     def _create_default_face(self):
         """Create a more realistic default mystical face"""
@@ -416,40 +470,39 @@ class FaceAnimator:
             await self.animate_speaking(phonemes)
     
     def _generate_face_for_chunk(self, audio_chunk: np.ndarray) -> np.ndarray:
-        """Generate face for a single audio chunk"""
+        """Generate face for a single audio chunk using best available system"""
         try:
             print(f"🎬 CHUNK DEBUG: _generate_face_for_chunk called with {len(audio_chunk)} samples")
             
-            # Use audio-driven face to generate the face
-            if self.audio_driven_face and hasattr(self.audio_driven_face, 'generate_face_from_audio'):
-                print(f"✅ CHUNK DEBUG: Audio-driven face available, converting chunk to bytes...")
-                
-                # Convert audio chunk back to bytes for the audio_driven_face system
-                audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
-                print(f"✅ CHUNK DEBUG: Converted {len(audio_chunk)} samples to {len(audio_bytes)} bytes")
-                
-                print(f"🎭 CHUNK DEBUG: About to call generate_face_from_audio...")
-                face = self.audio_driven_face.generate_face_from_audio(audio_bytes, duration=len(audio_chunk)/22050)
-                print(f"✅ CHUNK DEBUG: generate_face_from_audio returned face with shape: {face.shape}")
+            # Convert audio chunk to bytes for compatibility
+            audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
+            duration = len(audio_chunk) / 22050
+            
+            # Try dlib system first (most accurate)
+            if self.dlib_face_animator:
+                print(f"✅ DLIB: Using facial landmark animation")
+                face = self.dlib_face_animator.generate_face_from_audio(audio_bytes, duration)
+                print(f"✅ DLIB: Generated face with shape: {face.shape}")
                 return face
+            
+            # Fallback to audio-driven system  
+            elif self.audio_driven_face and hasattr(self.audio_driven_face, 'generate_face_from_audio'):
+                print(f"✅ AUDIO-DRIVEN: Using audio-driven animation")
+                face = self.audio_driven_face.generate_face_from_audio(audio_bytes, duration)
+                print(f"✅ AUDIO-DRIVEN: Generated face with shape: {face.shape}")
+                return face
+            
+            # Final fallback to static face
             else:
-                print(f"❌ CHUNK DEBUG: Audio-driven face not available!")
-                print(f"❌ CHUNK DEBUG: self.audio_driven_face = {self.audio_driven_face}")
-                if self.audio_driven_face:
-                    print(f"❌ CHUNK DEBUG: has generate_face_from_audio = {hasattr(self.audio_driven_face, 'generate_face_from_audio')}")
-                
-                # Fallback to current face
-                self.logger.warning("Audio-driven face not available, using static face")
-                return self._current_face.copy() if self._current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
+                print(f"⚠️ STATIC: Using static face (no animation systems available)")
+                return self.current_face.copy() if self.current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
                 
         except Exception as e:
             print(f"❌ CHUNK DEBUG: Error in _generate_face_for_chunk: {e}")
             import traceback
             print(f"❌ CHUNK TRACEBACK: {traceback.format_exc()}")
             self.logger.error(f"Error generating face for chunk: {e}")
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
-            # Return current face as fallback
-            return self._current_face.copy() if self._current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
+            return self.current_face.copy() if self.current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
     
     async def _display_mouth_shape(self, mouth_shape: str, duration: float):
         """Display mouth shape using real-time manipulation or smooth morphing"""

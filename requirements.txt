@@ -1,28 +1,27 @@
-# Core dependencies for Raspberry Pi - tested and working
-groq==0.9.0
-edge-tts==6.1.7
-speechrecognition==3.10.0
-pyttsx3==2.90
-pygame==2.5.2
-pyaudio==0.2.11
+# Audio and Speech
+edge-tts>=6.1.3
+groq>=0.4.1
+SpeechRecognition>=3.10.0
+pyaudio>=0.2.11
 
-# Enhanced morphing (no external dependencies needed!)
-imutils==0.5.4
+# Computer Vision and Image Processing
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
 
-# Real-time face manipulation (optional - install separately if wanted)
-# dlib>=19.22.0
+# Facial Recognition and Landmarks
+dlib>=19.22.0
+imutils>=0.5.4
 
-# System utilities
-python-dotenv==1.0.0
-requests==2.31.0
-pillow==10.0.1
+# Game/Display Framework
+pygame>=2.5.0
 
-# Audio processing (simplified for Pi)
-soundfile==0.13.1
+# Utility
+python-dotenv>=1.0.0
 
-# Note: Audio-driven deepfake system uses only numpy and OpenCV (system packages)
-# Note: For real-time face manipulation, install dlib via system package:
-# sudo apt install python3-dlib
-# Note: Install these via system packages instead of pip:
-# sudo apt install python3-opencv python3-numpy python3-pyaudio
-# Then create virtual environment with: python3 -m venv --system-site-packages venv 
+# Note: Install system packages on Raspberry Pi:
+# sudo apt update
+# sudo apt install cmake build-essential python3-dev
+# sudo apt install libasound2-dev portaudio19-dev
+# sudo apt install libhdf5-dev libhdf5-serial-dev
+# sudo apt install libatlas-base-dev 
