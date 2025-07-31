@@ -115,27 +115,73 @@ class DisplayManager:
             self.logger.error(f"Face display error: {e}")
     
     def _scale_face_for_projection(self, face_image: np.ndarray) -> np.ndarray:
-        """Scale face image for proper projection onto head form"""
+        """Scale face image for optimal projection display"""
         try:
-            height, width = face_image.shape[:2]
+            if face_image is None or face_image.size == 0:
+                self.logger.error("Invalid face image provided for scaling")
+                return face_image
             
-            # Calculate scale factor based on configuration
-            target_width = int(self.screen_width * FACE_SCALE * 0.6)  # 60% of screen width
-            scale_factor = target_width / width
+            # Validate image shape and data
+            if len(face_image.shape) != 3 or face_image.shape[2] != 3:
+                self.logger.error(f"Invalid face image shape: {face_image.shape}")
+                return face_image
             
-            target_height = int(height * scale_factor)
+            h, w = face_image.shape[:2]
+            if h < 1 or w < 1:
+                self.logger.error(f"Invalid face image dimensions: {h}x{w}")
+                return face_image
             
-            # Resize image
-            scaled_face = cv2.resize(
-                face_image, 
-                (target_width, target_height), 
-                interpolation=cv2.INTER_LANCZOS4
-            )
+            # Ensure image data is valid
+            if not np.isfinite(face_image).all():
+                self.logger.warning("Face image contains invalid values, cleaning...")
+                face_image = np.nan_to_num(face_image, nan=0, posinf=255, neginf=0)
+            
+            # Ensure proper data type
+            if face_image.dtype != np.uint8:
+                face_image = np.clip(face_image, 0, 255).astype(np.uint8)
+            
+            # Calculate target size while maintaining aspect ratio
+            current_ratio = w / h
+            target_ratio = self.face_display_width / self.face_display_height
+            
+            if current_ratio > target_ratio:
+                # Image is wider - fit to width
+                new_width = self.face_display_width
+                new_height = int(self.face_display_width / current_ratio)
+            else:
+                # Image is taller - fit to height  
+                new_height = self.face_display_height
+                new_width = int(self.face_display_height * current_ratio)
+            
+            # Ensure minimum dimensions
+            new_width = max(1, new_width)
+            new_height = max(1, new_height)
+            
+            # Perform resize with error handling
+            try:
+                scaled_face = cv2.resize(
+                    face_image, 
+                    (new_width, new_height), 
+                    interpolation=cv2.INTER_LINEAR
+                )
+            except cv2.error as cv_error:
+                self.logger.error(f"OpenCV resize failed: {cv_error}")
+                # Try with different interpolation
+                try:
+                    scaled_face = cv2.resize(
+                        face_image, 
+                        (new_width, new_height), 
+                        interpolation=cv2.INTER_NEAREST
+                    )
+                except Exception as fallback_error:
+                    self.logger.error(f"Fallback resize failed: {fallback_error}")
+                    return face_image
             
             return scaled_face
             
         except Exception as e:
             self.logger.error(f"Face scaling error: {e}")
+            self.logger.error(f"Face info: shape={face_image.shape if face_image is not None else 'None'}, dtype={face_image.dtype if face_image is not None else 'None'}")
             return face_image
     
     def _calculate_face_position(self, face_image: np.ndarray) -> Tuple[int, int]:
