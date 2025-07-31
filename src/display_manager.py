@@ -152,10 +152,31 @@ class DisplayManager:
             self.logger.error(f"Fade effect error: {e}")
             return image
     
-    def update_display(self):
-        """Update the display and maintain frame rate"""
-        pygame.display.flip()
-        self.clock.tick(FPS)
+    def update_display(self, face_image=None):
+        """Update the display with current content"""
+        try:
+            if face_image is not None:
+                self.display_face(face_image)
+            
+            # Check if pygame display is properly initialized
+            if not pygame.get_init() or not pygame.display.get_init():
+                self.logger.warning("Pygame display not properly initialized, skipping update")
+                return
+            
+            # Check if we have a valid surface
+            screen = pygame.display.get_surface()
+            if screen is None:
+                self.logger.warning("No valid pygame surface available, skipping update")
+                return
+            
+            # Safe display update with error handling
+            pygame.display.flip()
+            
+        except pygame.error as e:
+            self.logger.error(f"Pygame display error: {e}")
+        except Exception as e:
+            self.logger.error(f"Display update error: {e}")
+            # Don't re-raise the exception, just log it
     
     def handle_events(self) -> bool:
         """Handle pygame events, returns False if quit requested"""
