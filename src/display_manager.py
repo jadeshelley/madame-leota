@@ -63,8 +63,27 @@ class DisplayManager:
         self.logger.info(f"Display initialized: {self.screen_width}x{self.screen_height}")
     
     def clear_screen(self):
-        """Clear the screen with background color"""
-        self.screen.fill(self.background_color)
+        """Clear the display with background color"""
+        try:
+            # Ensure we have a valid background color
+            if not hasattr(self, 'background_color') or self.background_color is None:
+                self.background_color = (0, 0, 0)  # Default black
+            
+            # Ensure we have a valid screen surface
+            if self.screen is None:
+                self.logger.error("No screen surface available for clearing")
+                return
+            
+            self.screen.fill(self.background_color)
+            
+        except Exception as e:
+            self.logger.error(f"Error clearing screen: {e}")
+            # Try with default black background
+            try:
+                if self.screen is not None:
+                    self.screen.fill((0, 0, 0))
+            except Exception as fallback_error:
+                self.logger.error(f"Fallback clear screen failed: {fallback_error}")
     
     def display_image(self, image: np.ndarray, position: Tuple[int, int]):
         """Display a numpy image on the screen"""
