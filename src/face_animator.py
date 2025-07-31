@@ -443,12 +443,12 @@ class FaceAnimator:
                     # Original face: (1536, 1024, 3), mouth at (512, 1152)
                     import cv2
                     
-                    # Crop around the mouth area to ensure it's visible
+                    # Crop around the face area centered on mouth to show full face
                     mouth_x, mouth_y = 512, 1152
                     
-                    # Define crop area centered on mouth with enough context
-                    crop_width = 600   # Good width for mouth context
-                    crop_height = 500  # Good height to see mouth area
+                    # Define crop area large enough to show the full face
+                    crop_width = 1200   # Much wider to show full face
+                    crop_height = 1000  # Much taller to show full face
                     
                     # Calculate crop bounds
                     x1 = max(0, mouth_x - crop_width // 2)
@@ -462,16 +462,16 @@ class FaceAnimator:
                     if y2 - y1 < crop_height:
                         y1 = max(0, y2 - crop_height)
                     
-                    # Crop the face around mouth area
-                    mouth_focused = face[y1:y2, x1:x2]
+                    # Crop the face to show full face area
+                    face_crop = face[y1:y2, x1:x2]
                     
-                    # Scale the mouth-focused crop to fit screen nicely
-                    target_height = 500  # Good viewing size
-                    scale_factor = target_height / mouth_focused.shape[0]
-                    new_width = int(mouth_focused.shape[1] * scale_factor)
-                    new_height = int(mouth_focused.shape[0] * scale_factor)
+                    # Scale the full-face crop to fit screen nicely
+                    target_height = 600  # Good viewing size for full face
+                    scale_factor = target_height / face_crop.shape[0]
+                    new_width = int(face_crop.shape[1] * scale_factor)
+                    new_height = int(face_crop.shape[0] * scale_factor)
                     
-                    scaled_face = cv2.resize(mouth_focused, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+                    scaled_face = cv2.resize(face_crop, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
                     
                     # Calculate where mouth should be in the cropped view
                     mouth_in_crop_x = mouth_x - x1
@@ -479,17 +479,17 @@ class FaceAnimator:
                     scaled_mouth_x = int(mouth_in_crop_x * scale_factor)
                     scaled_mouth_y = int(mouth_in_crop_y * scale_factor)
                     
-                    print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {mouth_focused.shape} -> Scaled {scaled_face.shape}")
+                    print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {face_crop.shape} -> Scaled {scaled_face.shape}")
                     print(f"🎯 MOUTH DEBUG: Original mouth ({mouth_x},{mouth_y}) -> Crop ({mouth_in_crop_x},{mouth_in_crop_y}) -> Scaled ({scaled_mouth_x},{scaled_mouth_y})")
-                    print(f"👁️ VIEW DEBUG: Mouth-focused view - look for movement around center ({scaled_mouth_x},{scaled_mouth_y})")
+                    print(f"👁️ VIEW DEBUG: Full face view - mouth movement at ({scaled_mouth_x},{scaled_mouth_y})")
                     
-                    # Display the mouth-focused view  
+                    # Display the full face view  
                     screen_center = (0, 0)
                     self.display_manager.display_image(scaled_face, screen_center)
                     
                     # 🔧 CRITICAL FIX: Actually update the display to show the changes!
                     self.display_manager.update_display()
-                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Mouth-focused face displayed and screen updated successfully")
+                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Full face displayed and screen updated successfully")
                 except Exception as e:
                     print(f"❌ DISPLAY DEBUG: Frame {frame} - Display failed: {e}")
                     import traceback
