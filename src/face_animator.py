@@ -372,7 +372,10 @@ class FaceAnimator:
                     # Center the face on screen (0, 0) means top-left, but let's center it
                     screen_center = (0, 0)  # For now, display at origin - can be adjusted
                     self.display_manager.display_image(face, screen_center)
-                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Face displayed successfully")
+                    
+                    # 🔧 CRITICAL FIX: Actually update the display to show the changes!
+                    self.display_manager.update_display()
+                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Face displayed and screen updated successfully")
                 except Exception as e:
                     print(f"❌ DISPLAY DEBUG: Frame {frame} - Display failed: {e}")
                     import traceback
