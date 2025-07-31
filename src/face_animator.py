@@ -60,46 +60,65 @@ class FaceAnimator:
             return {}
     
     def _create_default_face(self):
-        """Create a default Madame Leota face using OpenCV"""
+        """Create a more realistic default mystical face"""
         try:
-            # Create base face image
+            # Face dimensions 
             width, height = 400, 500
+            
+            # Create face with better colors
             face = np.zeros((height, width, 3), dtype=np.uint8)
             
-            # Colors
-            skin_color = (220, 190, 180)  # Pale skin
-            eye_color = (50, 150, 50)     # Green eyes
-            hair_color = (40, 40, 40)     # Dark hair
+            # Mystical background glow
+            center = (width // 2, height // 2)
+            for i in range(5):
+                glow_radius = 180 - i * 30
+                glow_intensity = 20 - i * 3
+                cv2.circle(face, center, glow_radius, (glow_intensity, glow_intensity//2, glow_intensity//3), -1)
             
-            # Draw face oval
-            cv2.ellipse(face, (width//2, height//2), (150, 180), 0, 0, 360, skin_color, -1)
+            # Face shape (more realistic oval)
+            face_color = (180, 150, 120)  # Warmer skin tone
+            cv2.ellipse(face, (width//2, height//2 + 20), (120, 160), 0, 0, 360, face_color, -1)
             
-            # Draw eyes
-            eye_y = height//2 - 40
-            left_eye_x = width//2 - 60
-            right_eye_x = width//2 + 60
+            # Cheekbones and face contour
+            cheek_color = (160, 130, 100)
+            cv2.ellipse(face, (width//2 - 60, height//2), (40, 80), 15, 0, 360, cheek_color, -1)
+            cv2.ellipse(face, (width//2 + 60, height//2), (40, 80), -15, 0, 360, cheek_color, -1)
             
-            # Eye shapes
-            cv2.ellipse(face, (left_eye_x, eye_y), (25, 15), 0, 0, 360, (255, 255, 255), -1)
-            cv2.ellipse(face, (right_eye_x, eye_y), (25, 15), 0, 0, 360, (255, 255, 255), -1)
-            cv2.circle(face, (left_eye_x, eye_y), 12, eye_color, -1)
-            cv2.circle(face, (right_eye_x, eye_y), 12, eye_color, -1)
-            cv2.circle(face, (left_eye_x, eye_y), 6, (0, 0, 0), -1)
-            cv2.circle(face, (right_eye_x, eye_y), 6, (0, 0, 0), -1)
+            # Eyes (more mystical)
+            eye_color = (80, 40, 120)  # Purple-ish mystical eyes
+            pupil_color = (200, 180, 255)  # Glowing pupils
             
-            # Draw nose
+            # Left eye
+            cv2.ellipse(face, (width//2 - 40, height//2 - 30), (25, 15), 0, 0, 360, eye_color, -1)
+            cv2.circle(face, (width//2 - 40, height//2 - 30), 8, pupil_color, -1)
+            cv2.circle(face, (width//2 - 40, height//2 - 30), 3, (255, 255, 255), -1)
+            
+            # Right eye  
+            cv2.ellipse(face, (width//2 + 40, height//2 - 30), (25, 15), 0, 0, 360, eye_color, -1)
+            cv2.circle(face, (width//2 + 40, height//2 - 30), 8, pupil_color, -1)
+            cv2.circle(face, (width//2 + 40, height//2 - 30), 3, (255, 255, 255), -1)
+            
+            # Eyebrows
+            brow_color = (100, 80, 60)
+            cv2.ellipse(face, (width//2 - 40, height//2 - 50), (30, 8), 15, 0, 180, brow_color, -1)
+            cv2.ellipse(face, (width//2 + 40, height//2 - 50), (30, 8), 165, 0, 180, brow_color, -1)
+            
+            # Nose (more refined)
+            nose_color = (160, 130, 100)
             nose_points = np.array([
-                [width//2 - 5, height//2],
-                [width//2 + 5, height//2],
-                [width//2, height//2 + 20]
+                [width//2, height//2 - 10],
+                [width//2 - 8, height//2 + 10],
+                [width//2 + 8, height//2 + 10]
             ], np.int32)
-            cv2.fillPoly(face, [nose_points], skin_color)
+            cv2.fillPoly(face, [nose_points], nose_color)
             
             # Create different mouth shapes
             self._create_mouth_shapes(face, width, height)
             
             # Store base face
             self.face_images['base'] = face.copy()
+            
+            self.logger.info("Created improved mystical default face")
             
         except Exception as e:
             self.logger.error(f"Error creating default face: {e}")
