@@ -413,12 +413,30 @@ class AudioDrivenFace:
             # Blend deformed mouth back into face
             result_face = face_image.copy()
             
-            # Apply blending
-            for c in range(3):
-                result_face[y1:y2, x1:x2, c] = (
-                    mask * deformed_mouth[:, :, c] + 
-                    (1 - mask) * result_face[y1:y2, x1:x2, c]
-                )
+            # Ensure dimensions match before blending
+            target_region = result_face[y1:y2, x1:x2]
+            
+            # Verify all dimensions match
+            if (deformed_mouth.shape != target_region.shape or 
+                mask.shape != deformed_mouth.shape[:2]):
+                self.logger.warning(f"Dimension mismatch: deformed={deformed_mouth.shape}, target={target_region.shape}, mask={mask.shape}")
+                # Resize mask if needed
+                if mask.shape != deformed_mouth.shape[:2]:
+                    mask = cv2.resize(mask, (deformed_mouth.shape[1], deformed_mouth.shape[0]))
+                # If still mismatched, skip blending
+                if deformed_mouth.shape != target_region.shape:
+                    return face_image
+            
+            # Apply blending with proper dimension checks
+            try:
+                for c in range(min(3, deformed_mouth.shape[2], target_region.shape[2])):
+                    result_face[y1:y2, x1:x2, c] = (
+                        mask * deformed_mouth[:, :, c] + 
+                        (1 - mask) * target_region[:, :, c]
+                    )
+            except Exception as blend_error:
+                self.logger.error(f"Blending error: {blend_error}")
+                return face_image
             
             return result_face.astype(np.uint8)
             
