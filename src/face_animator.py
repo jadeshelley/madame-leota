@@ -443,17 +443,18 @@ class FaceAnimator:
                     # Original face: (1536, 1024, 3), mouth at (512, 1152)
                     import cv2
                     
-                    # Crop around the face area centered on mouth to show full face
-                    mouth_x, mouth_y = 512, 1152
+                    # Crop around the face area - use image center instead of invalid mouth position
+                    face_center_x = face.shape[1] // 2  # Center of image width
+                    face_center_y = face.shape[0] // 2  # Center of image height
                     
                     # Define crop area large enough to show the full face
-                    crop_width = 1200   # Much wider to show full face
-                    crop_height = 1000  # Much taller to show full face
+                    crop_width = min(1400, face.shape[1])   # Nearly full width
+                    crop_height = min(1000, face.shape[0])  # Nearly full height
                     
                     # Calculate crop bounds
-                    x1 = max(0, mouth_x - crop_width // 2)
+                    x1 = max(0, face_center_x - crop_width // 2)
                     x2 = min(face.shape[1], x1 + crop_width)
-                    y1 = max(0, mouth_y - crop_height // 2)  # Center mouth in crop
+                    y1 = max(0, face_center_y - crop_height // 2)  # Center on face
                     y2 = min(face.shape[0], y1 + crop_height)
                     
                     # Ensure we got the right dimensions
@@ -473,19 +474,24 @@ class FaceAnimator:
                     
                     scaled_face = cv2.resize(face_crop, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
                     
-                    # Calculate where mouth should be in the cropped view
-                    mouth_in_crop_x = mouth_x - x1
-                    mouth_in_crop_y = mouth_y - y1
-                    scaled_mouth_x = int(mouth_in_crop_x * scale_factor)
-                    scaled_mouth_y = int(mouth_in_crop_y * scale_factor)
+                    # Calculate face center in the cropped view (no mouth overlay needed)
+                    face_center_in_crop_x = face_center_x - x1
+                    face_center_in_crop_y = face_center_y - y1
+                    scaled_center_x = int(face_center_in_crop_x * scale_factor)
+                    scaled_center_y = int(face_center_in_crop_y * scale_factor)
                     
                     print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {face_crop.shape} -> Scaled {scaled_face.shape}")
-                    print(f"🎯 MOUTH DEBUG: Original mouth ({mouth_x},{mouth_y}) -> Crop ({mouth_in_crop_x},{mouth_in_crop_y}) -> Scaled ({scaled_mouth_x},{scaled_mouth_y})")
-                    print(f"👁️ VIEW DEBUG: Full face view - mouth movement at ({scaled_mouth_x},{scaled_mouth_y})")
+                    print(f"🎯 CENTER DEBUG: Face center ({face_center_x},{face_center_y}) -> Crop ({face_center_in_crop_x},{face_center_in_crop_y}) -> Scaled ({scaled_center_x},{scaled_center_y})")
+                    print(f"👁️ VIEW DEBUG: Full face view centered at ({scaled_center_x},{scaled_center_y})")
                     
-                    # Display the full face view  
-                    screen_center = (0, 0)
-                    self.display_manager.display_image(scaled_face, screen_center)
+                    # Clear screen and display the full face view centered
+                    self.display_manager.clear_screen()
+                    
+                    screen_width, screen_height = self.display_manager.get_screen_size()
+                    screen_center_x = (screen_width - new_width) // 2
+                    screen_center_y = (screen_height - new_height) // 2
+                    screen_position = (screen_center_x, screen_center_y)
+                    self.display_manager.display_image(scaled_face, screen_position)
                     
                     # 🔧 CRITICAL FIX: Actually update the display to show the changes!
                     self.display_manager.update_display()
