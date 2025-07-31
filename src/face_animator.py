@@ -370,23 +370,42 @@ class FaceAnimator:
                 try:
                     print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display face...")
                     
-                    # 🔧 SCALE FIX: Scale face to fit screen so mouth is visible  
-                    # Face is 1536x1024, screen is 1280x720, mouth at (512, 1152)
+                    # 🔧 MOUTH FOCUS FIX: Crop to mouth area first, then scale
+                    # Original mouth center: (512, 1152), face: (1536, 1024, 3)
                     import cv2
-                    scale_factor = 720 / face.shape[0]  # Scale to fit screen height
-                    new_width = int(face.shape[1] * scale_factor)
-                    new_height = int(face.shape[0] * scale_factor)
                     
-                    scaled_face = cv2.resize(face, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
-                    print(f"🔧 SCALE DEBUG: Original {face.shape} -> Scaled {scaled_face.shape}, scale_factor={scale_factor:.3f}")
+                    # Define crop area around mouth (show more of lower face)
+                    crop_height = 600  # Show 600 pixels of height around mouth area
+                    crop_width = 800   # Show 800 pixels of width around mouth area
                     
-                    # Center the scaled face on screen
+                    mouth_y = 1152  # Original mouth Y coordinate
+                    mouth_x = 512   # Original mouth X coordinate
+                    
+                    # Calculate crop bounds (ensure we don't go outside image bounds)
+                    y1 = max(0, mouth_y - crop_height // 3)  # Show more below mouth than above
+                    y2 = min(face.shape[0], y1 + crop_height)
+                    x1 = max(0, mouth_x - crop_width // 2)
+                    x2 = min(face.shape[1], x1 + crop_width)
+                    
+                    # Crop the face to focus on mouth area
+                    mouth_crop = face[y1:y2, x1:x2]
+                    print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {mouth_crop.shape}, crop region: ({x1},{y1}) to ({x2},{y2})")
+                    
+                    # Now scale the cropped area to fit screen
+                    scale_factor = min(720 / mouth_crop.shape[0], 1280 / mouth_crop.shape[1])
+                    new_width = int(mouth_crop.shape[1] * scale_factor)
+                    new_height = int(mouth_crop.shape[0] * scale_factor)
+                    
+                    scaled_mouth = cv2.resize(mouth_crop, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+                    print(f"🔧 SCALE DEBUG: Cropped {mouth_crop.shape} -> Scaled {scaled_mouth.shape}, scale_factor={scale_factor:.3f}")
+                    
+                    # Center the scaled mouth crop on screen
                     screen_center = (0, 0)  # Display at origin for now
-                    self.display_manager.display_image(scaled_face, screen_center)
+                    self.display_manager.display_image(scaled_mouth, screen_center)
                     
                     # 🔧 CRITICAL FIX: Actually update the display to show the changes!
                     self.display_manager.update_display()
-                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Scaled face displayed and screen updated successfully")
+                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Mouth-focused face displayed and screen updated successfully")
                 except Exception as e:
                     print(f"❌ DISPLAY DEBUG: Frame {frame} - Display failed: {e}")
                     import traceback

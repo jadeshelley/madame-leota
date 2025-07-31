@@ -404,8 +404,8 @@ class AudioDrivenFace:
         min_jaw, max_jaw = self.jaw_range
         jaw_drop = min_jaw + (max_jaw - min_jaw) * amplitude
         
-        # 🔧 MAKE MORE DRAMATIC: Increase jaw movement for visibility  
-        jaw_drop = jaw_drop * 2.0  # Double the jaw movement
+        # 🔧 MAKE MUCH MORE DRAMATIC: Increase jaw movement for visibility  
+        jaw_drop = jaw_drop * 8.0  # 8x the jaw movement (was 2x)
         
         return jaw_drop
     
@@ -414,9 +414,9 @@ class AudioDrivenFace:
         min_width, max_width = self.lip_width_range
         lip_width = min_width + (max_width - min_width) * frequency
         
-        # 🔧 MAKE MORE DRAMATIC: Increase lip width variation
-        # Make it vary more dramatically between 0.7 and 1.4
-        lip_width = 0.7 + (1.4 - 0.7) * frequency
+        # 🔧 MAKE MUCH MORE DRAMATIC: Increase lip width variation
+        # Make it vary dramatically between 0.3 and 2.0 (much wider range)
+        lip_width = 0.3 + (2.0 - 0.3) * frequency
         
         return lip_width
     
@@ -425,8 +425,8 @@ class AudioDrivenFace:
         min_height, max_height = self.lip_height_range
         lip_height = min_height + (max_height - min_height) * amplitude
         
-        # 🔧 MAKE MORE DRAMATIC: Increase lip height variation  
-        lip_height = lip_height * 1.5  # Make lip height changes more dramatic
+        # 🔧 MAKE MUCH MORE DRAMATIC: Increase lip height variation  
+        lip_height = lip_height * 3.0  # 3x lip height changes (was 1.5x)
         
         return lip_height
     
@@ -458,8 +458,8 @@ class AudioDrivenFace:
             print(f"🎭 DEFORM DEBUG: Face shape: {face_image.shape}, mouth center: ({mouth_x}, {mouth_y})")
             
             # Define mouth region for deformation (smaller for better performance)
-            mouth_width = int(w * 0.15)  
-            mouth_height = int(w * 0.12)
+            mouth_width = int(w * 0.25)   # Increased from 0.15 to 0.25
+            mouth_height = int(w * 0.20)  # Increased from 0.12 to 0.20
             
             # Calculate mouth region bounds
             x1 = max(0, mouth_x - mouth_width // 2)
