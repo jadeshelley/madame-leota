@@ -109,8 +109,8 @@ class MadameLeotaApp:
         
         print("🔧 DEBUG: About to set up signal handlers...")
         # Set up signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
         print("✅ DEBUG: Signal handlers set up!")
         
         self.running = False
