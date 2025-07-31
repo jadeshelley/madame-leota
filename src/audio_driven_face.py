@@ -438,7 +438,24 @@ class AudioDrivenFace:
                 self.logger.error(f"Blending error: {blend_error}")
                 return face_image
             
-            return result_face.astype(np.uint8)
+            # Ensure result_face is valid before conversion
+            try:
+                # Check for any invalid values
+                if not np.isfinite(result_face).all():
+                    self.logger.warning("Result face contains invalid values, cleaning...")
+                    result_face = np.nan_to_num(result_face, nan=0, posinf=255, neginf=0)
+                
+                # Ensure values are in valid range for uint8
+                result_face = np.clip(result_face, 0, 255)
+                
+                # Convert to uint8 safely
+                return result_face.astype(np.uint8)
+                
+            except Exception as conversion_error:
+                self.logger.error(f"Error converting result face: {conversion_error}")
+                self.logger.error(f"Result face info: shape={result_face.shape}, dtype={result_face.dtype}, min={np.min(result_face)}, max={np.max(result_face)}")
+                # Return original face as fallback
+                return face_image.astype(np.uint8)
             
         except Exception as e:
             self.logger.error(f"Error in simplified mouth deformation: {e}")
