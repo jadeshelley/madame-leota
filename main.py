@@ -85,7 +85,7 @@ class MadameLeotaApp:
             
             print("🗣️ CONSTRUCTOR: About to create SpeechProcessor...")
             self.logger.info("🗣️ Initializing Speech Processor...")
-            self.speech_processor = SpeechProcessor()
+            self.speech_processor = SpeechProcessor(self.audio_manager)
             print("✅ CONSTRUCTOR: SpeechProcessor created")
             self.logger.info("✅ Speech Processor initialized")
             

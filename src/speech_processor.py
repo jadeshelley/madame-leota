@@ -24,7 +24,15 @@ class SpeechProcessor:
         
         # Initialize speech recognition
         self.recognizer = sr.Recognizer()
-        self.microphone = sr.Microphone()
+        
+        # Initialize microphone (optional for Pi compatibility)
+        try:
+            self.logger.info("Attempting to initialize microphone...")
+            self.microphone = sr.Microphone()
+            self.logger.info("Microphone initialized successfully")
+        except Exception as e:
+            self.logger.warning(f"Microphone initialization failed (continuing without mic): {e}")
+            self.microphone = None
         
         # Initialize text-to-speech
         if USE_EDGE_TTS:
@@ -54,14 +62,21 @@ class SpeechProcessor:
             self.logger.warning(f"TTS setup warning: {e}")
     
     def _calibrate_microphone(self):
-        """Calibrate microphone for ambient noise"""
+        """Calibrate microphone for ambient noise (optional for Pi compatibility)"""
         try:
+            # Skip microphone calibration if no audio input needed for this session
+            if not hasattr(self, 'microphone') or self.microphone is None:
+                self.logger.info("Skipping microphone calibration - no microphone configured")
+                return
+                
+            self.logger.info("Attempting microphone calibration...")
+            # Use a shorter timeout to prevent hanging
             with self.microphone as source:
-                self.logger.info("Calibrating microphone for ambient noise...")
-                self.recognizer.adjust_for_ambient_noise(source, duration=2)
-                self.logger.info("Microphone calibrated")
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)  # Reduced from 2 seconds
+                self.logger.info("Microphone calibrated successfully")
         except Exception as e:
-            self.logger.error(f"Microphone calibration failed: {e}")
+            self.logger.warning(f"Microphone calibration failed (continuing anyway): {e}")
+            # Don't fail completely - just continue without calibration
     
     def _create_phoneme_map(self) -> dict:
         """Create mapping of phonemes to mouth shapes for animation"""
