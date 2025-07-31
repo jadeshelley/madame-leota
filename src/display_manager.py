@@ -47,30 +47,57 @@ class DisplayManager:
         """Clear the screen with background color"""
         self.screen.fill(self.background_color)
     
-    def display_image(self, image: np.ndarray, position: Optional[Tuple[int, int]] = None):
-        """Display an image on screen"""
+    def display_image(self, image: np.ndarray, position: Tuple[int, int]):
+        """Display a numpy image on the screen"""
         try:
-            # Convert OpenCV image (BGR) to pygame surface (RGB)
+            if image is None or image.size == 0:
+                self.logger.warning("Invalid image provided to display_image")
+                return
+            
+            # Ensure image is in correct format for pygame
             if len(image.shape) == 3:
-                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                # Convert BGR to RGB if needed and ensure uint8
+                if image.shape[2] == 3:
+                    image_rgb = cv2.cvtColor(image.astype(np.uint8), cv2.COLOR_BGR2RGB)
+                else:
+                    image_rgb = image.astype(np.uint8)
             else:
-                image_rgb = image
+                self.logger.error(f"Unsupported image shape: {image.shape}")
+                return
             
-            # Convert to pygame surface
-            surface = pygame.surfarray.make_surface(image_rgb.swapaxes(0, 1))
+            # Ensure the image dimensions are valid
+            if image_rgb.shape[0] < 1 or image_rgb.shape[1] < 1:
+                self.logger.warning(f"Invalid image dimensions: {image_rgb.shape}")
+                return
             
-            # Position the image
-            if position is None:
-                # Center the image
-                image_rect = surface.get_rect()
-                image_rect.center = (self.center_x, self.center_y)
-                position = image_rect.topleft
+            # Ensure image is contiguous in memory for pygame
+            if not image_rgb.flags['C_CONTIGUOUS']:
+                image_rgb = np.ascontiguousarray(image_rgb)
+            
+            # Create pygame surface with error handling
+            try:
+                surface = pygame.surfarray.make_surface(image_rgb.swapaxes(0, 1))
+            except (ValueError, TypeError) as surf_error:
+                self.logger.error(f"Surface creation failed: {surf_error}, image shape: {image_rgb.shape}, dtype: {image_rgb.dtype}")
+                # Try alternative method
+                try:
+                    # Convert to PIL Image first, then to pygame
+                    from PIL import Image as PILImage
+                    pil_image = PILImage.fromarray(image_rgb)
+                    mode = pil_image.mode
+                    size = pil_image.size
+                    raw_data = pil_image.tobytes()
+                    surface = pygame.image.fromstring(raw_data, size, mode)
+                except Exception as pil_error:
+                    self.logger.error(f"PIL fallback failed: {pil_error}")
+                    return
             
             # Blit to screen
             self.screen.blit(surface, position)
             
         except Exception as e:
-            self.logger.error(f"Image display error: {e}")
+            self.logger.error(f"Error displaying image: {e}")
+            self.logger.error(f"Image info: shape={image.shape if image is not None else 'None'}, dtype={image.dtype if image is not None else 'None'}")
     
     def display_face(self, face_image: np.ndarray):
         """Display Madame Leota's face, scaled and positioned for head form"""
