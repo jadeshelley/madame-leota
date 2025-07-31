@@ -60,13 +60,24 @@ class FaceAnimator:
         
         # Try to initialize dlib facial landmarks first (most accurate)
         try:
+            print("🔍 DEBUG: Attempting to import dlib system...")
             from src.dlib_face_animator import DlibFaceAnimator
+            print("✅ DEBUG: dlib import successful, creating instance...")
             self.dlib_face_animator = DlibFaceAnimator()
             print("✅ DLIB: Facial landmark system initialized")
             self.logger.info("✅ dlib facial landmark system initialized")
+        except ImportError as ie:
+            print(f"⚠️ DLIB: Import failed - {ie}")
+            print("⚠️ DLIB: Likely missing dlib package - run: pip install dlib")
+            self.logger.warning(f"dlib import failed: {ie}")
+            self.dlib_face_animator = None
         except Exception as e:
             print(f"⚠️ DLIB: Failed to initialize dlib system: {e}")
+            print(f"⚠️ DLIB: Error type: {type(e).__name__}")
+            import traceback
+            print(f"⚠️ DLIB: Traceback: {traceback.format_exc()}")
             self.logger.warning(f"Could not initialize dlib system: {e}")
+            self.dlib_face_animator = None
         
         # Fallback to audio-driven system
         if not self.dlib_face_animator:
@@ -424,28 +435,52 @@ class FaceAnimator:
                 try:
                     print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display face...")
                     
-                    # 🔧 FULL FACE DISPLAY: Show entire face scaled to fit screen
+                    # 🔧 MOUTH-FOCUSED DISPLAY: Crop around mouth then scale to ensure visibility
                     # Original face: (1536, 1024, 3), mouth at (512, 1152)
                     import cv2
                     
-                    # Scale the entire face to fit screen nicely
-                    target_height = 600  # Good size for full face viewing
-                    scale_factor = target_height / face.shape[0]
-                    new_width = int(face.shape[1] * scale_factor)
-                    new_height = int(face.shape[0] * scale_factor)
+                    # Crop around the mouth area to ensure it's visible
+                    mouth_x, mouth_y = 512, 1152
                     
-                    scaled_face = cv2.resize(face, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+                    # Define crop area centered on mouth with enough context
+                    crop_width = 600   # Good width for mouth context
+                    crop_height = 500  # Good height to see mouth area
                     
-                    # Calculate where mouth will be in scaled image
-                    scaled_mouth_x = int(512 * scale_factor)
-                    scaled_mouth_y = int(1152 * scale_factor) 
+                    # Calculate crop bounds
+                    x1 = max(0, mouth_x - crop_width // 2)
+                    x2 = min(face.shape[1], x1 + crop_width)
+                    y1 = max(0, mouth_y - crop_height // 2)  # Center mouth in crop
+                    y2 = min(face.shape[0], y1 + crop_height)
                     
-                    print(f"🔧 SCALE DEBUG: Original {face.shape} -> Scaled {scaled_face.shape}, scale_factor={scale_factor:.3f}")
-                    print(f"🎯 MOUTH DEBUG: Original mouth (512,1152) -> Scaled mouth (~{scaled_mouth_x},{scaled_mouth_y})")
-                    print(f"👁️ VIEW DEBUG: Full face displayed - look for mouth movement in lower portion")
+                    # Ensure we got the right dimensions
+                    if x2 - x1 < crop_width:
+                        x1 = max(0, x2 - crop_width)
+                    if y2 - y1 < crop_height:
+                        y1 = max(0, y2 - crop_height)
                     
-                    # Display the full scaled face  
-                    screen_center = (0, 0)  # Display at origin
+                    # Crop the face around mouth area
+                    mouth_focused = face[y1:y2, x1:x2]
+                    
+                    # Scale the mouth-focused crop to fit screen nicely
+                    target_height = 500  # Good viewing size
+                    scale_factor = target_height / mouth_focused.shape[0]
+                    new_width = int(mouth_focused.shape[1] * scale_factor)
+                    new_height = int(mouth_focused.shape[0] * scale_factor)
+                    
+                    scaled_face = cv2.resize(mouth_focused, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+                    
+                    # Calculate where mouth should be in the cropped view
+                    mouth_in_crop_x = mouth_x - x1
+                    mouth_in_crop_y = mouth_y - y1
+                    scaled_mouth_x = int(mouth_in_crop_x * scale_factor)
+                    scaled_mouth_y = int(mouth_in_crop_y * scale_factor)
+                    
+                    print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {mouth_focused.shape} -> Scaled {scaled_face.shape}")
+                    print(f"🎯 MOUTH DEBUG: Original mouth ({mouth_x},{mouth_y}) -> Crop ({mouth_in_crop_x},{mouth_in_crop_y}) -> Scaled ({scaled_mouth_x},{scaled_mouth_y})")
+                    print(f"👁️ VIEW DEBUG: Mouth-focused view - look for movement around center ({scaled_mouth_x},{scaled_mouth_y})")
+                    
+                    # Display the mouth-focused view  
+                    screen_center = (0, 0)
                     self.display_manager.display_image(scaled_face, screen_center)
                     
                     # 🔧 CRITICAL FIX: Actually update the display to show the changes!
