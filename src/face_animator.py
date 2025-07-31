@@ -250,9 +250,10 @@ class FaceAnimator:
                 # Use real-time face manipulation (Option 4)
                 animated_face = await self.realtime_manipulator.animate_phoneme(mouth_shape, duration)
                 
-                # Scale and display
-                scaled_face = self._scale_face(animated_face)
-                self.display_manager.update_display(scaled_face)
+                # Display properly
+                self.display_manager.clear_screen()
+                self.display_manager.display_face(animated_face)
+                self.display_manager.update_display()
                 
                 # Hold for duration
                 if duration > 0:
@@ -304,9 +305,10 @@ class FaceAnimator:
                         brightness_factor = 1.0 + 0.05 * np.sin(step * 2)
                         blended = cv2.convertScaleAbs(blended, alpha=brightness_factor, beta=0)
                     
-                    # Scale and display
-                    scaled_face = self._scale_face(blended)
-                    self.display_manager.update_display(scaled_face)
+                    # Display properly
+                    self.display_manager.clear_screen()
+                    self.display_manager.display_face(blended)
+                    self.display_manager.update_display()
                     
                     if step < morph_steps:
                         await asyncio.sleep(step_time)
@@ -342,9 +344,10 @@ class FaceAnimator:
                 M = np.float32([[1, 0, offset_x], [0, 1, offset_y]])
                 animated = cv2.warpAffine(face_image, M, (w, h), borderMode=cv2.BORDER_REFLECT)
                 
-                # Scale and display
-                scaled_face = self._scale_face(animated)
-                self.display_manager.update_display(scaled_face)
+                # Display properly
+                self.display_manager.clear_screen()
+                self.display_manager.display_face(animated)
+                self.display_manager.update_display()
                 
                 await asyncio.sleep(step_time)
                 
