@@ -37,7 +37,15 @@ print("📱 IMPORT: Loading DisplayManager...")
 from src.display_manager import DisplayManager
 print("✅ IMPORT: All imports complete!")
 
-# Setup logging
+# Create necessary directories BEFORE setting up logging
+print("📁 SETUP: Creating directories...")
+Path(LOGS_DIR).mkdir(parents=True, exist_ok=True)
+Path(FACE_ASSETS_DIR).mkdir(parents=True, exist_ok=True)
+Path(AUDIO_CACHE_DIR).mkdir(parents=True, exist_ok=True)
+print("✅ SETUP: Directories created")
+
+# Setup logging (now that logs directory exists)
+print("📝 SETUP: Configuring logging...")
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -46,6 +54,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+print("✅ SETUP: Logging configured")
 
 class MadameLeotaApp:
     def __init__(self):
