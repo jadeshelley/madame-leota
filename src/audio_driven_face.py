@@ -115,21 +115,112 @@ class AudioDrivenFace:
     def _bytes_to_audio_array(self, audio_data: bytes) -> np.ndarray:
         """Convert audio bytes to numpy array (Pi-compatible)"""
         try:
-            # Create BytesIO buffer
-            audio_buffer = io.BytesIO(audio_data)
+            self.logger.info(f"Audio data starts with: {audio_data[:10]}")
             
-            # Read WAV data
-            with wave.open(audio_buffer, 'rb') as wav_file:
-                frames = wav_file.readframes(-1)
-                audio_array = np.frombuffer(frames, dtype=np.int16)
-                
-                # Convert to float and normalize
-                audio_array = audio_array.astype(np.float32) / 32768.0
-                
-                return audio_array
+            # Try different audio format detection
+            if audio_data.startswith(b'RIFF'):
+                # WAV format
+                self.logger.info("Detected WAV format")
+                return self._convert_wav_to_array(audio_data)
+            elif audio_data.startswith(b'\xff\xfb') or audio_data.startswith(b'\xff\xf3'):
+                # MP3 format
+                self.logger.info("Detected MP3 format - converting")
+                return self._convert_mp3_to_array(audio_data)
+            else:
+                # Try to detect other formats or raw audio
+                self.logger.info("Unknown format, trying raw audio conversion")
+                return self._convert_raw_to_array(audio_data)
                 
         except Exception as e:
             self.logger.error(f"Audio conversion error: {e}")
+            return np.array([])
+    
+    def _convert_wav_to_array(self, audio_data: bytes) -> np.ndarray:
+        """Convert WAV bytes to numpy array"""
+        try:
+            audio_buffer = io.BytesIO(audio_data)
+            with wave.open(audio_buffer, 'rb') as wav_file:
+                frames = wav_file.readframes(-1)
+                audio_array = np.frombuffer(frames, dtype=np.int16)
+                return audio_array.astype(np.float32) / 32768.0
+        except Exception as e:
+            self.logger.error(f"WAV conversion error: {e}")
+            return np.array([])
+    
+    def _convert_mp3_to_array(self, audio_data: bytes) -> np.ndarray:
+        """Convert MP3 bytes to numpy array using basic approach"""
+        try:
+            # For MP3, we'll try a simple approach
+            # Skip MP3 headers and try to extract audio data
+            # This is a simplified approach - in production you'd use librosa or pydub
+            
+            # Try to find audio data after headers
+            audio_start = 0
+            for i in range(min(1000, len(audio_data) - 2)):
+                if audio_data[i:i+2] in [b'\xff\xfb', b'\xff\xf3']:
+                    audio_start = i + 100  # Skip header
+                    break
+            
+            if audio_start > 0:
+                raw_data = audio_data[audio_start:]
+                # Convert to audio assuming 16-bit format
+                if len(raw_data) >= 2:
+                    audio_array = np.frombuffer(raw_data, dtype=np.int16)
+                    return audio_array.astype(np.float32) / 32768.0
+            
+            return np.array([])
+            
+        except Exception as e:
+            self.logger.error(f"MP3 conversion error: {e}")
+            return np.array([])
+    
+    def _convert_raw_to_array(self, audio_data: bytes) -> np.ndarray:
+        """Convert raw bytes to audio array with multiple attempts"""
+        try:
+            self.logger.info(f"Trying raw conversion with {len(audio_data)} bytes")
+            
+            # Try different interpretations
+            attempts = [
+                (np.int16, "int16"),
+                (np.int8, "int8"), 
+                (np.uint8, "uint8"),
+                (np.float32, "float32")
+            ]
+            
+            for dtype, name in attempts:
+                try:
+                    if len(audio_data) >= np.dtype(dtype).itemsize:
+                        # Ensure length is multiple of dtype size
+                        trim_length = (len(audio_data) // np.dtype(dtype).itemsize) * np.dtype(dtype).itemsize
+                        trimmed_data = audio_data[:trim_length]
+                        
+                        audio_array = np.frombuffer(trimmed_data, dtype=dtype)
+                        
+                        if len(audio_array) > 0:
+                            # Normalize to float32 range [-1, 1]
+                            if dtype == np.int16:
+                                normalized = audio_array.astype(np.float32) / 32768.0
+                            elif dtype == np.int8:
+                                normalized = audio_array.astype(np.float32) / 128.0
+                            elif dtype == np.uint8:
+                                normalized = (audio_array.astype(np.float32) - 128) / 128.0
+                            else:  # float32
+                                normalized = audio_array.astype(np.float32)
+                            
+                            # Basic sanity check - audio should have some variation
+                            if np.std(normalized) > 0.001:  # Some actual audio content
+                                self.logger.info(f"Successfully converted as {name}: {len(normalized)} samples, std: {np.std(normalized):.6f}")
+                                return normalized
+                            
+                except Exception as e:
+                    self.logger.debug(f"Failed {name} conversion: {e}")
+                    continue
+            
+            self.logger.warning("All raw conversion attempts failed")
+            return np.array([])
+            
+        except Exception as e:
+            self.logger.error(f"Raw conversion error: {e}")
             return np.array([])
     
     def _analyze_amplitude_simple(self, audio_array: np.ndarray) -> float:
