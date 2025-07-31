@@ -25,6 +25,17 @@ if USE_REALTIME_FACE_MANIPULATION:
 else:
     REALTIME_AVAILABLE = False
 
+# Import audio-driven face system if enabled
+if USE_AUDIO_DRIVEN_FACE:
+    try:
+        from .audio_driven_face import AudioDrivenFace
+        AUDIO_DRIVEN_AVAILABLE = True
+    except ImportError as e:
+        logging.warning(f"Audio-driven face manipulation not available: {e}")
+        AUDIO_DRIVEN_AVAILABLE = False
+else:
+    AUDIO_DRIVEN_AVAILABLE = False
+
 class FaceAnimator:
     def __init__(self, display_manager):
         self.logger = logging.getLogger(__name__)
@@ -69,6 +80,27 @@ class FaceAnimator:
                 self.logger.warning(f"Real-time face manipulation setup failed: {e}, falling back to morphing")
                 self.realtime_manipulator = None
         
+        # Initialize audio-driven face system if available (highest priority)
+        self.audio_driven_face = None
+        if USE_AUDIO_DRIVEN_FACE and AUDIO_DRIVEN_AVAILABLE:
+            try:
+                self.audio_driven_face = AudioDrivenFace()
+                # Load base face for manipulation
+                base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
+                if base_face_path.exists():
+                    success = self.audio_driven_face.load_base_face(str(base_face_path))
+                    if success:
+                        self.logger.info("Audio-driven deepfake-like face manipulation enabled")
+                    else:
+                        self.logger.warning("Failed to load base face for audio-driven manipulation")
+                        self.audio_driven_face = None
+                else:
+                    self.logger.warning("No base face found for audio-driven manipulation")
+                    self.audio_driven_face = None
+            except Exception as e:
+                self.logger.warning(f"Audio-driven face setup failed: {e}")
+                self.audio_driven_face = None
+        
         # Create base face if no assets found
         if not self.face_images:
             self._create_default_face()
@@ -76,7 +108,9 @@ class FaceAnimator:
         # Initialize current face
         self._current_face = self.face_images.get('mouth_closed', self.face_images.get('base'))
         
-        animation_type = "real-time manipulation" if self.realtime_manipulator else "smooth morphing"
+        animation_type = "audio-driven deepfake-like" if self.audio_driven_face else \
+                        "real-time manipulation" if self.realtime_manipulator else \
+                        "enhanced morphing"
         self.logger.info(f"Face Animator initialized with {animation_type}")
     
     def _load_face_assets(self) -> Dict[str, np.ndarray]:
@@ -242,6 +276,40 @@ class FaceAnimator:
         except Exception as e:
             self.logger.error(f"Speaking animation error: {e}")
             self.is_speaking = False
+    
+    async def animate_speaking_with_audio(self, audio_data: bytes, phonemes: List[dict]):
+        """Animate speaking using audio-driven face manipulation for deepfake-like results"""
+        try:
+            if not self.audio_driven_face:
+                # Fallback to regular phoneme-based animation
+                await self.animate_speaking(phonemes)
+                return
+            
+            self.is_speaking = True
+            self.current_state = "speaking"
+            
+            # Calculate total duration
+            total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
+            
+            # Generate deepfake-like face from audio
+            deepfake_face = await self.audio_driven_face.generate_face_from_audio(audio_data, total_duration)
+            
+            # Display the result
+            self.display_manager.clear_screen()
+            self.display_manager.display_face(deepfake_face)
+            self.display_manager.update_display()
+            
+            # Hold for the duration
+            await asyncio.sleep(total_duration)
+            
+            # Return to idle
+            self.is_speaking = False
+            self.current_state = "idle"
+            
+        except Exception as e:
+            self.logger.error(f"Error in audio-driven speaking animation: {e}")
+            # Fallback to regular animation
+            await self.animate_speaking(phonemes)
     
     async def _display_mouth_shape(self, mouth_shape: str, duration: float):
         """Display mouth shape using real-time manipulation or smooth morphing"""

@@ -52,6 +52,13 @@ USE_REALTIME_FACE_MANIPULATION = False  # Set to True when dlib is working
 FACE_MANIPULATION_QUALITY = "medium"    # low, medium, high (affects Pi performance)
 MOUTH_BLEND_SMOOTHNESS = 0.8            # 0.0 to 1.0 - smoothness of mouth blending
 
+# Audio-Driven Deepfake-Like Manipulation (MOST REALISTIC!)
+USE_AUDIO_DRIVEN_FACE = True            # Analyzes audio waveform for realistic lip sync
+AUDIO_ANALYSIS_QUALITY = "high"         # low, medium, high - affects realism vs performance
+DEEPFAKE_SMOOTHING = 0.9                # 0.0 to 1.0 - temporal smoothing for natural movement
+JAW_SENSITIVITY = 1.2                   # Jaw movement sensitivity to audio
+LIP_SENSITIVITY = 0.8                   # Lip movement sensitivity to frequency
+
 # Enhanced Morphing (Fallback - No dependencies needed!)
 USE_ENHANCED_MORPHING = True             # Better morphing with timing effects
 MORPH_STEPS = 8                         # More steps = smoother (but slower)

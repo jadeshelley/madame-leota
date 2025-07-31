@@ -20,8 +20,9 @@ pillow==10.0.1
 # Audio processing (simplified for Pi)
 soundfile==0.13.1
 
+# Note: Audio-driven deepfake system uses only numpy and OpenCV (system packages)
 # Note: For real-time face manipulation, install dlib via system package:
 # sudo apt install python3-dlib
 # Note: Install these via system packages instead of pip:
-# sudo apt install python3-opencv python3-numpy python3-pyaudio python3-dlib
+# sudo apt install python3-opencv python3-numpy python3-pyaudio
 # Then create virtual environment with: python3 -m venv --system-site-packages venv 

@@ -121,17 +121,24 @@ class MadameLeotaApp:
             return None
     
     async def speak_response(self, text):
-        """Speak response with facial animation"""
+        """Speak response with deepfake-like facial animation"""
         try:
             self.logger.info(f"Leota says: {text}")
             
             # Generate audio and phoneme data for lip sync
             audio_data, phonemes = await self.speech_processor.text_to_speech_with_phonemes(text)
             
-            # Start speaking animation
-            animation_task = asyncio.create_task(
-                self.face_animator.animate_speaking(phonemes)
-            )
+            # Start deepfake-like speaking animation with audio analysis
+            if hasattr(self.face_animator, 'animate_speaking_with_audio') and self.face_animator.audio_driven_face:
+                # Use audio-driven deepfake-like animation (most realistic)
+                animation_task = asyncio.create_task(
+                    self.face_animator.animate_speaking_with_audio(audio_data, phonemes)
+                )
+            else:
+                # Fallback to phoneme-based animation
+                animation_task = asyncio.create_task(
+                    self.face_animator.animate_speaking(phonemes)
+                )
             
             # Play audio
             audio_task = asyncio.create_task(
