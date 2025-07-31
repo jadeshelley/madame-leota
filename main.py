@@ -9,6 +9,7 @@ import signal
 import sys
 import logging
 from pathlib import Path
+from typing import Optional
 
 from config import *
 from src.audio_manager import AudioManager
@@ -30,33 +31,56 @@ logging.basicConfig(
 class MadameLeotaApp:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.running = False
+        self.logger.info("🚀 Starting Madame Leota initialization...")
         
         # Initialize components
-        self.audio_manager = None
-        self.chatgpt_client = None
-        self.face_animator = None
-        self.speech_processor = None
-        self.display_manager = None
+        try:
+            self.logger.info("📱 Initializing Display Manager...")
+            self.display_manager = DisplayManager()
+            self.logger.info("✅ Display Manager initialized")
+            
+            self.logger.info("🔊 Initializing Audio Manager...")
+            self.audio_manager = AudioManager()
+            self.logger.info("✅ Audio Manager initialized")
+            
+            self.logger.info("🧠 Initializing ChatGPT Client...")
+            self.chatgpt_client = ChatGPTClient()
+            self.logger.info("✅ ChatGPT Client initialized")
+            
+            self.logger.info("🗣️ Initializing Speech Processor...")
+            self.speech_processor = SpeechProcessor()
+            self.logger.info("✅ Speech Processor initialized")
+            
+            self.logger.info("🎭 Initializing Face Animator...")
+            self.face_animator = FaceAnimator(self.display_manager, self.speech_processor)
+            self.logger.info("✅ Face Animator initialized")
+            
+            self.logger.info("🎉 All components initialized successfully!")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to initialize component: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            raise
+        
+        # Set up signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        
+        self.running = False
         
     async def initialize(self):
-        """Initialize all components"""
+        """Run post-initialization setup and tests"""
         try:
-            self.logger.info("Initializing Madame Leota...")
+            self.logger.info("🔧 Running post-initialization setup...")
             
             # Create necessary directories
             Path(FACE_ASSETS_DIR).mkdir(parents=True, exist_ok=True)
             Path(AUDIO_CACHE_DIR).mkdir(parents=True, exist_ok=True)
             Path(LOGS_DIR).mkdir(parents=True, exist_ok=True)
             
-            # Initialize components
-            self.audio_manager = AudioManager()
-            self.chatgpt_client = ChatGPTClient()
-            self.display_manager = DisplayManager()
-            self.face_animator = FaceAnimator(self.display_manager)
-            self.speech_processor = SpeechProcessor(self.audio_manager)
-            
-            # Test connections
+            # Test connections (components already initialized in __init__)
+            self.logger.info("🔍 Testing connections...")
             await self.chatgpt_client.test_connection()
             self.audio_manager.test_audio()
             
