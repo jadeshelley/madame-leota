@@ -157,6 +157,22 @@ class DlibFaceAnimator:
             self.logger.error(f"Error generating face from audio: {e}")
             return self.base_face
     
+    def generate_face_for_audio_chunk(self, audio_chunk: np.ndarray) -> np.ndarray:
+        """Generate face for audio chunk - bridge method for face_animator.py"""
+        try:
+            if self.base_face is None:
+                return self.base_face
+            
+            # Convert numpy array to bytes for our existing method
+            audio_bytes = audio_chunk.tobytes()
+            
+            # Use our enhanced method
+            return self.generate_face_from_audio(audio_bytes, 0.1)  # Short duration for chunk
+            
+        except Exception as e:
+            self.logger.error(f"Error in generate_face_for_audio_chunk: {e}")
+            return self.base_face
+    
     def _enhanced_audio_analysis(self, audio_array: np.ndarray) -> Tuple[float, float, str]:
         """Enhanced audio analysis for better lip-sync"""
         try:
