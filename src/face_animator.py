@@ -94,6 +94,29 @@ class FaceAnimator:
                 self.dlib_face_animator = DlibFaceAnimator()
                 print("✅ DLIB: Facial landmark system initialized")
                 self.logger.info("✅ dlib facial landmark system initialized")
+                
+                # Load base face for dlib system
+                try:
+                    base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+                    if base_face_path.exists():
+                        print(f"🎭 DLIB: Loading base face from {base_face_path}")
+                        success = self.dlib_face_animator.load_base_face(str(base_face_path))
+                        if success:
+                            print("✅ DLIB: Base face loaded with facial landmarks detected")
+                            self.logger.info("✅ dlib base face loaded successfully")
+                        else:
+                            print("❌ DLIB: Failed to load base face")
+                            self.logger.error("❌ dlib failed to load base face")
+                            self.dlib_face_animator = None
+                    else:
+                        print(f"❌ DLIB: Base face not found at {base_face_path}")
+                        self.logger.error(f"❌ dlib base face not found at {base_face_path}")
+                        self.dlib_face_animator = None
+                except Exception as e:
+                    print(f"❌ DLIB: Error loading base face: {e}")
+                    self.logger.error(f"❌ dlib error loading base face: {e}")
+                    self.dlib_face_animator = None
+                    
             except ImportError as ie:
                 print(f"⚠️ DLIB: Import failed - {ie}")
                 print("⚠️ DLIB: Likely missing dlib package - run: pip install dlib")
