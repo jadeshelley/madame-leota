@@ -180,15 +180,15 @@ class DlibFaceAnimator:
                 print(f"🎭 FIRST PHONEME: {phoneme_type}")
             self._last_phoneme = phoneme_type
             
-            # Use simple, direct deformation that we know works
+            # Use ultra-simple deformation that definitely works
             try:
-                print(f"🎭 APPLYING SIMPLE DEFORMATION: amplitude={amplitude:.3f}, frequency={frequency:.3f}, phoneme={phoneme_type}")
-                animated_face = self._apply_simple_direct_deformation(amplitude, frequency, phoneme_type)
-                print(f"✅ SIMPLE DEFORMATION: Successfully applied {phoneme_type} deformation")
+                print(f"🎭 APPLYING ULTRA-SIMPLE DEFORMATION: amplitude={amplitude:.3f}, frequency={frequency:.3f}, phoneme={phoneme_type}")
+                animated_face = self._apply_ultra_simple_deformation(amplitude, frequency, phoneme_type)
+                print(f"✅ ULTRA-SIMPLE DEFORMATION: Successfully applied {phoneme_type} deformation")
                 return animated_face
             except Exception as e:
-                print(f"⚠️ SIMPLE DEFORMATION ERROR: {e}, using base face")
-                self.logger.error(f"❌ Simple deformation failed: {e}")
+                print(f"⚠️ ULTRA-SIMPLE DEFORMATION ERROR: {e}, using base face")
+                self.logger.error(f"❌ Ultra-simple deformation failed: {e}")
                 return self.base_face
             
         except Exception as e:
@@ -397,6 +397,51 @@ class DlibFaceAnimator:
             
         except Exception as e:
             self.logger.error(f"Error in simple direct deformation: {e}")
+            return self.base_face
+    
+    def _apply_ultra_simple_deformation(self, amplitude: float, frequency: float, phoneme_type: str) -> np.ndarray:
+        """Ultra-simple deformation that just draws a mouth shape"""
+        try:
+            # Create a copy of the base face
+            result = self.base_face.copy()
+            
+            # Get mouth center from landmarks
+            mouth_center = np.mean(self.original_mouth_points, axis=0)
+            center_x, center_y = int(mouth_center[0]), int(mouth_center[1])
+            
+            # Calculate mouth size based on phoneme
+            if phoneme_type == "vowel":
+                mouth_width = int(80 + amplitude * 100)  # 80-180 pixels wide
+                mouth_height = int(60 + amplitude * 120)  # 60-180 pixels tall
+                color = (0, 255, 0)  # Green for vowels
+            elif phoneme_type == "consonant":
+                mouth_width = int(60 + amplitude * 80)   # 60-140 pixels wide
+                mouth_height = int(40 + amplitude * 100)  # 40-140 pixels tall
+                color = (0, 0, 255)  # Red for consonants
+            elif phoneme_type == "closed":
+                mouth_width = int(20 + amplitude * 40)   # 20-60 pixels wide
+                mouth_height = int(10 + amplitude * 30)  # 10-40 pixels tall
+                color = (255, 0, 0)  # Blue for closed
+            else:  # neutral
+                mouth_width = int(40 + amplitude * 60)   # 40-100 pixels wide
+                mouth_height = int(30 + amplitude * 70)  # 30-100 pixels tall
+                color = (255, 255, 0)  # Yellow for neutral
+            
+            print(f"🎭 ULTRA-SIMPLE: Drawing {phoneme_type} mouth at ({center_x}, {center_y}) size {mouth_width}x{mouth_height}")
+            
+            # Draw a simple oval mouth
+            cv2.ellipse(result, (center_x, center_y), (mouth_width//2, mouth_height//2), 
+                       0, 0, 360, color, -1)  # Filled ellipse
+            
+            # Add a border
+            cv2.ellipse(result, (center_x, center_y), (mouth_width//2, mouth_height//2), 
+                       0, 0, 360, (255, 255, 255), 3)  # White border
+            
+            print(f"🎭 ULTRA-SIMPLE: Drew mouth successfully")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error in ultra-simple deformation: {e}")
             return self.base_face
     
     def _calculate_deformed_mouth_points(self, points: np.ndarray, center: np.ndarray, 
