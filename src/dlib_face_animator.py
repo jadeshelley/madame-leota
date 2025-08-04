@@ -303,32 +303,32 @@ class DlibFaceAnimator:
             mouth_width = np.max(mouth_points[:, 0]) - np.min(mouth_points[:, 0])
             mouth_height = np.max(mouth_points[:, 1]) - np.min(mouth_points[:, 1])
             
-            # Apply phoneme-specific deformations - INCREASED INTENSITY
+            # Apply phoneme-specific deformations - EXTREMELY DRAMATIC INTENSITY
             if phoneme_type == "vowel":
-                # Wide open mouth for vowels (A, E, I, O, U)
-                jaw_drop = amplitude * 120  # Very dramatic jaw drop (increased from 80)
-                width_stretch = 1.0 + (frequency * 1.2)  # Wide stretch (increased from 0.6)
-                height_stretch = 1.0 + (amplitude * 1.2)  # Tall opening (increased from 0.8)
+                # Wide open mouth for vowels (A, E, I, O, U) - EXTREMELY DRAMATIC
+                jaw_drop = amplitude * 300  # Extremely dramatic jaw drop
+                width_stretch = 1.0 + (frequency * 3.0)  # Extremely wide stretch
+                height_stretch = 1.0 + (amplitude * 3.0)  # Extremely tall opening
                 print(f"🎭 VOWEL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             elif phoneme_type == "consonant":
-                # Moderate opening for consonants (B, P, M, etc.)
-                jaw_drop = amplitude * 80  # Moderate jaw drop (increased from 40)
-                width_stretch = 0.8 + (frequency * 0.8)  # Slight stretch (increased from 0.3)
-                height_stretch = 0.7 + (amplitude * 0.8)  # Moderate height (increased from 0.4)
+                # Moderate opening for consonants (B, P, M, etc.) - VERY DRAMATIC
+                jaw_drop = amplitude * 200  # Very dramatic jaw drop
+                width_stretch = 0.8 + (frequency * 2.0)  # Very wide stretch
+                height_stretch = 0.7 + (amplitude * 2.0)  # Very tall opening
                 print(f"🎭 CONSONANT DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             elif phoneme_type == "closed":
-                # Nearly closed for quiet sounds
-                jaw_drop = amplitude * 30  # Minimal jaw drop (increased from 15)
-                width_stretch = 0.7 + (frequency * 0.4)  # Slight compression (increased from 0.2)
-                height_stretch = 0.6 + (amplitude * 0.4)  # Minimal height (increased from 0.2)
+                # Nearly closed for quiet sounds - MODERATE
+                jaw_drop = amplitude * 100  # Moderate jaw drop
+                width_stretch = 0.7 + (frequency * 1.0)  # Moderate stretch
+                height_stretch = 0.6 + (amplitude * 1.0)  # Moderate height
                 print(f"🎭 CLOSED DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             else:  # neutral
-                jaw_drop = amplitude * 60  # Increased from 30
-                width_stretch = 0.8 + (frequency * 0.8)  # Increased from 0.4
-                height_stretch = 0.7 + (amplitude * 0.8)  # Increased from 0.5
+                jaw_drop = amplitude * 150  # Moderate
+                width_stretch = 0.8 + (frequency * 1.5)  # Moderate
+                height_stretch = 0.7 + (amplitude * 1.5)  # Moderate
                 print(f"🎭 NEUTRAL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
             
             # Apply deformations with seamless blending
@@ -583,16 +583,21 @@ class DlibFaceAnimator:
             src_region = src_points - [x, y]
             dst_region = dst_points - [x, y]
             
-            # Create a mask for the mouth area
+            # Create a mask for the mouth area - MUCH LARGER AND MORE AGGRESSIVE
             mask = np.zeros((h, w), dtype=np.uint8)
             mouth_contour = src_region.astype(np.int32)
             cv2.fillPoly(mask, [mouth_contour], 255)
             
-            # Apply Gaussian blur to create soft edges
-            mask = cv2.GaussianBlur(mask, (21, 21), 0)
+            # Expand the mask to cover more area around the mouth
+            kernel = np.ones((15, 15), np.uint8)  # Larger kernel for more coverage
+            mask = cv2.dilate(mask, kernel, iterations=2)  # Expand mask area
             
-            # Normalize mask
+            # Apply Gaussian blur to create soft edges - LESS BLUR FOR SHARPER DEFORMATION
+            mask = cv2.GaussianBlur(mask, (11, 11), 0)  # Reduced blur for sharper edges
+            
+            # Normalize mask and make it more aggressive
             mask = mask.astype(np.float32) / 255.0
+            mask = np.clip(mask * 1.5, 0, 1)  # Boost mask intensity
             mask = np.stack([mask, mask, mask], axis=2)
             
             # Apply perspective transform to the region
@@ -606,7 +611,7 @@ class DlibFaceAnimator:
                                                   flags=cv2.INTER_LINEAR, 
                                                   borderMode=cv2.BORDER_REFLECT)
                 
-                # Blend using the mask for seamless integration
+                # Blend using the mask for seamless integration - MORE AGGRESSIVE BLENDING
                 blended_region = region * (1 - mask) + warped_region * mask
                 
                 # Apply to result
