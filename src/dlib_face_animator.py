@@ -170,6 +170,16 @@ class DlibFaceAnimator:
             print(f"🎭 DLIB DEBUG: amp={amplitude:.3f}, freq={frequency:.3f}, phoneme={phoneme_type}")
             self.logger.info(f"🎭 dlib: amp={amplitude:.3f}, freq={frequency:.3f}, phoneme={phoneme_type}")
             
+            # Check if we're getting different phonemes
+            if hasattr(self, '_last_phoneme'):
+                if self._last_phoneme != phoneme_type:
+                    print(f"🎭 PHONEME CHANGE: {self._last_phoneme} -> {phoneme_type}")
+                else:
+                    print(f"🎭 SAME PHONEME: {phoneme_type}")
+            else:
+                print(f"🎭 FIRST PHONEME: {phoneme_type}")
+            self._last_phoneme = phoneme_type
+            
             # Try new seamless approach first
             try:
                 animated_face = self._apply_seamless_mouth_deformation(amplitude, frequency, phoneme_type)
@@ -217,15 +227,15 @@ class DlibFaceAnimator:
                 avg_freq = np.mean(recent_freqs)
                 amp_variance = np.var(recent_amps)
                 
-                            # Phoneme classification for better mouth shapes - INCREASED SENSITIVITY
-            if avg_freq > 0.3 and amp_variance > 0.05:  # Lowered thresholds
-                phoneme_type = "vowel"  # Wide open mouth for vowels
-            elif avg_amp > 0.5:  # Lowered threshold
-                phoneme_type = "consonant"  # Moderate opening for consonants
-            elif avg_freq < 0.1:  # Lowered threshold
-                phoneme_type = "closed"  # Nearly closed for quiet sounds
-            else:
-                phoneme_type = "neutral"
+                # Phoneme classification for better mouth shapes - INCREASED SENSITIVITY
+                if avg_freq > 0.3 and amp_variance > 0.05:  # Lowered thresholds
+                    phoneme_type = "vowel"  # Wide open mouth for vowels
+                elif avg_amp > 0.5:  # Lowered threshold
+                    phoneme_type = "consonant"  # Moderate opening for consonants
+                elif avg_freq < 0.1:  # Lowered threshold
+                    phoneme_type = "closed"  # Nearly closed for quiet sounds
+                else:
+                    phoneme_type = "neutral"
             else:
                 phoneme_type = "neutral"
             
@@ -255,23 +265,27 @@ class DlibFaceAnimator:
                 jaw_drop = amplitude * 120  # Very dramatic jaw drop (increased from 80)
                 width_stretch = 1.0 + (frequency * 1.2)  # Wide stretch (increased from 0.6)
                 height_stretch = 1.0 + (amplitude * 1.2)  # Tall opening (increased from 0.8)
+                print(f"🎭 VOWEL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             elif phoneme_type == "consonant":
                 # Moderate opening for consonants (B, P, M, etc.)
                 jaw_drop = amplitude * 80  # Moderate jaw drop (increased from 40)
                 width_stretch = 0.8 + (frequency * 0.8)  # Slight stretch (increased from 0.3)
                 height_stretch = 0.7 + (amplitude * 0.8)  # Moderate height (increased from 0.4)
+                print(f"🎭 CONSONANT DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             elif phoneme_type == "closed":
                 # Nearly closed for quiet sounds
                 jaw_drop = amplitude * 30  # Minimal jaw drop (increased from 15)
                 width_stretch = 0.7 + (frequency * 0.4)  # Slight compression (increased from 0.2)
                 height_stretch = 0.6 + (amplitude * 0.4)  # Minimal height (increased from 0.2)
+                print(f"🎭 CLOSED DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             else:  # neutral
                 jaw_drop = amplitude * 60  # Increased from 30
                 width_stretch = 0.8 + (frequency * 0.8)  # Increased from 0.4
                 height_stretch = 0.7 + (amplitude * 0.8)  # Increased from 0.5
+                print(f"🎭 NEUTRAL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
             
             # Apply deformations with seamless blending
             new_mouth_points = self._calculate_deformed_mouth_points(
