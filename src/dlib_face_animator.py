@@ -257,21 +257,58 @@ class DlibFaceAnimator:
                     phoneme_type = "neutral"
                     print(f"🎭 REAL AUDIO: NEUTRAL (amp={avg_amp:.4f})")
                 
-                # REAL AUDIO RESPONSE - use actual audio patterns instead of artificial cycling
-                # Use proven phoneme detection based on research
-                # Based on acoustic phonetics: vowels are high energy, consonants are moderate, silence is low
-                if avg_amp > 0.8:
-                    phoneme_type = "vowel"
-                    print(f"🎭 PROVEN PHONEME: VOWEL (amp={avg_amp:.4f} > 0.8)")
-                elif avg_amp > 0.4:
-                    phoneme_type = "consonant"
-                    print(f"🎭 PROVEN PHONEME: CONSONANT (amp={avg_amp:.4f} > 0.4)")
-                elif avg_amp < 0.2:
-                    phoneme_type = "closed"
-                    print(f"🎭 PROVEN PHONEME: CLOSED (amp={avg_amp:.4f} < 0.2)")
+                # DYNAMIC PHONEME DETECTION - respond to changes in audio, not just absolute values
+                # This prevents getting stuck on the same phoneme
+                
+                # Calculate how much the audio has changed recently
+                if len(self.audio_history) >= 3:
+                    recent_changes = []
+                    for i in range(1, len(self.audio_history)):
+                        change = abs(self.audio_history[i][0] - self.audio_history[i-1][0])
+                        recent_changes.append(change)
+                    
+                    avg_change = np.mean(recent_changes)
+                    max_change = np.max(recent_changes)
+                    print(f"🎭 AUDIO CHANGE ANALYSIS: avg_change={avg_change:.4f}, max_change={max_change:.4f}")
+                    
+                    # Use change-based phoneme detection
+                    if max_change > 0.01:  # Significant change detected
+                        if avg_amp > 0.9:
+                            phoneme_type = "vowel"
+                            print(f"🎭 CHANGE-BASED: VOWEL (change={max_change:.4f} > 0.01, amp={avg_amp:.4f})")
+                        elif avg_amp > 0.7:
+                            phoneme_type = "consonant"
+                            print(f"🎭 CHANGE-BASED: CONSONANT (change={max_change:.4f} > 0.01, amp={avg_amp:.4f})")
+                        else:
+                            phoneme_type = "closed"
+                            print(f"🎭 CHANGE-BASED: CLOSED (change={max_change:.4f} > 0.01, amp={avg_amp:.4f})")
+                    else:  # No significant change, use amplitude-based
+                        if avg_amp > 0.8:
+                            phoneme_type = "vowel"
+                            print(f"🎭 AMPLITUDE-BASED: VOWEL (amp={avg_amp:.4f} > 0.8)")
+                        elif avg_amp > 0.4:
+                            phoneme_type = "consonant"
+                            print(f"🎭 AMPLITUDE-BASED: CONSONANT (amp={avg_amp:.4f} > 0.4)")
+                        elif avg_amp < 0.2:
+                            phoneme_type = "closed"
+                            print(f"🎭 AMPLITUDE-BASED: CLOSED (amp={avg_amp:.4f} < 0.2)")
+                        else:
+                            phoneme_type = "neutral"
+                            print(f"🎭 AMPLITUDE-BASED: NEUTRAL (amp={avg_amp:.4f})")
                 else:
-                    phoneme_type = "neutral"
-                    print(f"🎭 PROVEN PHONEME: NEUTRAL (amp={avg_amp:.4f})")
+                    # Fallback to simple amplitude-based detection
+                    if avg_amp > 0.8:
+                        phoneme_type = "vowel"
+                        print(f"🎭 FALLBACK: VOWEL (amp={avg_amp:.4f} > 0.8)")
+                    elif avg_amp > 0.4:
+                        phoneme_type = "consonant"
+                        print(f"🎭 FALLBACK: CONSONANT (amp={avg_amp:.4f} > 0.4)")
+                    elif avg_amp < 0.2:
+                        phoneme_type = "closed"
+                        print(f"🎭 FALLBACK: CLOSED (amp={avg_amp:.4f} < 0.2)")
+                    else:
+                        phoneme_type = "neutral"
+                        print(f"🎭 FALLBACK: NEUTRAL (amp={avg_amp:.4f})")
                 
 
                 
@@ -280,6 +317,16 @@ class DlibFaceAnimator:
             else:
                 phoneme_type = "neutral"
                 print(f"🎭 REAL AUDIO: NEUTRAL (insufficient history)")
+            
+            # ADD SUBTLE FRAME-BASED VARIATION to prevent getting stuck
+            # This ensures the mouth keeps moving even with static audio
+            frame_variation = (frame_num % 30) / 30.0  # Cycle every 30 frames
+            if frame_variation < 0.1 and phoneme_type == "vowel":
+                phoneme_type = "consonant"  # Brief consonant break
+                print(f"🎭 FRAME VARIATION: Brief consonant break (frame {frame_num})")
+            elif frame_variation > 0.9 and phoneme_type == "vowel":
+                phoneme_type = "closed"  # Brief closed break
+                print(f"🎭 FRAME VARIATION: Brief closed break (frame {frame_num})")
             
             # FINAL DEBUG: Always log what we're returning
             print(f"🎭 RETURNING PHONEME: {phoneme_type.upper()} for frame {frame_num}")
