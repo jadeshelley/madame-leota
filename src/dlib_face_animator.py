@@ -694,8 +694,8 @@ class DlibFaceAnimator:
             # Calculate RMS amplitude
             rms = np.sqrt(np.mean(audio_array**2))
             
-            # Apply non-linear scaling for better sensitivity
-            amplitude = np.tanh(rms * 8.0)  # Very enhanced sensitivity for dramatic movements
+            # Use RMS directly without tanh saturation for better variation detection
+            amplitude = min(rms * 4.0, 1.0)  # Scale RMS but cap at 1.0, no tanh saturation
             
             print(f"📊 AMPLITUDE ANALYSIS: rms={rms:.4f}, amplitude={amplitude:.4f}")
             return float(amplitude)
