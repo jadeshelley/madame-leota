@@ -507,30 +507,116 @@ class FaceAnimator:
             self.is_speaking = True
             self.current_state = "speaking"
             
-            # Calculate frame timing
+            # Calculate total duration and frame rate
             total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
-            frame_rate = 15
+            frame_rate = 15  # 15 FPS for smooth animation
             frame_duration = 1.0 / frame_rate
             total_frames = int(total_duration * frame_rate)
             
-            # Convert audio for dlib processing
-            audio_array = self.dlib_face_animator._bytes_to_audio_array(audio_data)
-            samples_per_frame = max(512, len(audio_array) // total_frames if total_frames > 0 else len(audio_array))
-            
             self.logger.info(f"dlib animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
             
-            # Animation loop - use existing dlib logic
+            # Convert full audio once
+            audio_array = self.dlib_face_animator._bytes_to_audio_array(audio_data)
+            if len(audio_array) == 0:
+                self.logger.error("Failed to convert audio, falling back to phoneme animation")
+                await self.animate_speaking(phonemes)
+                return
+            
+            # Calculate samples per frame with minimum size for analysis
+            raw_samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
+            samples_per_frame = max(512, raw_samples_per_frame)  # Ensure minimum 512 samples for frequency analysis
+            
+            print(f"🎭 CHUNK SIZE FIX: raw_samples_per_frame={raw_samples_per_frame}, fixed_samples_per_frame={samples_per_frame}")
+            self.logger.info(f"Processing {samples_per_frame} samples per frame (minimum 512 for analysis)")
+            
+            # Real-time animation loop using dlib
             for frame in range(total_frames):
+                if frame >= len(audio_array):
+                    break
+                
+                # Extract audio chunk for this frame
                 start_idx = frame * samples_per_frame
                 end_idx = min(start_idx + samples_per_frame, len(audio_array))
                 audio_chunk = audio_array[start_idx:end_idx]
                 
-                # Generate face using dlib
+                if len(audio_chunk) == 0:
+                    break
+            
+                # Generate face using dlib system
                 face = self.dlib_face_animator.generate_face_for_audio_chunk(audio_chunk)
-                
-                if face is not None:
-                    # Use existing display logic from original code
-                    self._display_dlib_face(face, frame)
+            
+                # Debug output every 5 frames
+                if frame % 5 == 0:
+                    print(f"🎭 ANIMATION DEBUG: Frame {frame}, audio chunk: {len(audio_chunk)} samples, face shape: {face.shape}")
+            
+                # 🔍 DISPLAY DEBUG: Show the face on screen using existing logic
+                try:
+                    print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display face...")
+                    
+                    # 🔧 MOUTH-FOCUSED DISPLAY: Crop around mouth then scale to ensure visibility
+                    # Original face: (1536, 1024, 3), mouth at (512, 1152)
+                    import cv2
+                    
+                    # Crop around the face area - use image center instead of invalid mouth position
+                    face_center_x = face.shape[1] // 2  # Center of image width
+                    face_center_y = face.shape[0] // 2  # Center of image height
+                    
+                    # Define crop area large enough to show the full face
+                    crop_width = min(1400, face.shape[1])   # Nearly full width
+                    crop_height = min(1000, face.shape[0])  # Nearly full height
+                    
+                    # Calculate crop bounds
+                    x1 = max(0, face_center_x - crop_width // 2)
+                    x2 = min(face.shape[1], x1 + crop_width)
+                    y1 = max(0, face_center_y - crop_height // 2)  # Center on face
+                    y2 = min(face.shape[0], y1 + crop_height)
+                    
+                    # Ensure we got the right dimensions
+                    if x2 - x1 < crop_width:
+                        x1 = max(0, x2 - crop_width)
+                    if y2 - y1 < crop_height:
+                        y1 = max(0, y2 - crop_height)
+                    
+                    # Crop the face
+                    cropped_face = face[y1:y2, x1:x2]
+                    
+                    # Scale to display size
+                    target_height = 600
+                    aspect_ratio = cropped_face.shape[1] / cropped_face.shape[0]
+                    target_width = int(target_height * aspect_ratio)
+                    
+                    scaled_face = cv2.resize(cropped_face, (target_width, target_height))
+                    
+                    # Debug crop info
+                    print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {cropped_face.shape} -> Scaled {scaled_face.shape}")
+                    
+                    # Calculate center positions for debugging
+                    face_center = (face.shape[1]//2, face.shape[0]//2)
+                    crop_center = (cropped_face.shape[1]//2, cropped_face.shape[0]//2)
+                    scaled_center = (scaled_face.shape[1]//2, scaled_face.shape[0]//2)
+                    
+                    print(f"📍 CENTER DEBUG: Face center {face_center} -> Crop {crop_center} -> Scaled {scaled_center}")
+                    print(f"👁️ VIEW DEBUG: Full face view centered at {scaled_center}")
+                    
+                    # Clear screen and display
+                    self.display_manager.clear_screen()
+                    
+                    # Calculate screen position to center the face
+                    screen_width, screen_height = self.display_manager.get_screen_size()
+                    screen_center_x = (screen_width - target_width) // 2
+                    screen_center_y = (screen_height - target_height) // 2
+                    screen_position = (screen_center_x, screen_center_y)
+                    
+                    # Display the face
+                    self.display_manager.display_image(scaled_face, screen_position)
+                    
+                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Full face displayed and screen updated successfully")
+                    
+                except Exception as e:
+                    print(f"❌ DISPLAY ERROR: Frame {frame} - {e}")
+                    # Fallback to simple display
+                    self.display_manager.clear_screen()
+                    self.display_manager.display_image(face, (0, 0))
                 
                 await asyncio.sleep(frame_duration)
                 
