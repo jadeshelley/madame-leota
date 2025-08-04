@@ -166,7 +166,8 @@ class DlibFaceAnimator:
             # Enhanced audio analysis - use audio_chunk directly (it's already a numpy array)
             amplitude, frequency, phoneme_type = self._enhanced_audio_analysis(audio_chunk)
             
-            # Debug logging
+            # Debug logging - use print for immediate visibility
+            print(f"🎭 DLIB DEBUG: amp={amplitude:.3f}, freq={frequency:.3f}, phoneme={phoneme_type}")
             self.logger.info(f"🎭 dlib: amp={amplitude:.3f}, freq={frequency:.3f}, phoneme={phoneme_type}")
             
             # Try new seamless approach first
@@ -196,6 +197,7 @@ class DlibFaceAnimator:
     def _enhanced_audio_analysis(self, audio_array: np.ndarray) -> Tuple[float, float, str]:
         """Enhanced audio analysis for better lip-sync"""
         try:
+            print(f"🔍 ENHANCED AUDIO ANALYSIS: Called with {len(audio_array)} samples")
             # Basic amplitude and frequency analysis
             amplitude = self._analyze_amplitude(audio_array)
             frequency = self._analyze_frequency(audio_array)
@@ -448,6 +450,7 @@ class DlibFaceAnimator:
             # Apply non-linear scaling for better sensitivity
             amplitude = np.tanh(rms * 4.0)  # Enhanced sensitivity
             
+            print(f"📊 AMPLITUDE ANALYSIS: rms={rms:.4f}, amplitude={amplitude:.4f}")
             return float(amplitude)
         except Exception as e:
             self.logger.error(f"Error analyzing amplitude: {e}")
@@ -471,6 +474,7 @@ class DlibFaceAnimator:
             # Normalize frequency (0-1 range)
             frequency = min(dominant_freq / 1000.0, 1.0)  # Normalize to 1kHz
             
+            print(f"🎵 FREQUENCY ANALYSIS: dominant_freq={dominant_freq:.2f}Hz, normalized={frequency:.4f}")
             return float(frequency)
         except Exception as e:
             self.logger.error(f"Error analyzing frequency: {e}")
