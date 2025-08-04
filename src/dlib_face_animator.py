@@ -346,26 +346,53 @@ class DlibFaceAnimator:
                 dy = (point[1] - mouth_center[1]) * (height_stretch - 1.0)
                 mouth_points[i][1] += dy
             
-            # Apply simple affine transformation
+            # Apply local mouth-only deformation
             try:
-                # Calculate transformation matrix
-                src_points = self.original_mouth_points.astype(np.float32)
-                dst_points = mouth_points.astype(np.float32)
+                # Calculate mouth region bounds
+                mouth_bbox = cv2.boundingRect(self.original_mouth_points.astype(np.int32))
+                x, y, w, h = mouth_bbox
                 
-                # Use affine transform instead of homography
-                M = cv2.estimateAffinePartial2D(src_points, dst_points)[0]
+                # Expand region to include surrounding area for smooth blending
+                expansion = 60  # Larger area for better blending
+                x = max(0, x - expansion)
+                y = max(0, y - expansion)
+                w = min(result.shape[1] - x, w + 2 * expansion)
+                h = min(result.shape[0] - y, h + 2 * expansion)
                 
-                # Apply transformation to entire face
-                h, w = result.shape[:2]
-                warped = cv2.warpAffine(result, M, (w, h), 
-                                       flags=cv2.INTER_LINEAR, 
-                                       borderMode=cv2.BORDER_REFLECT)
+                # Extract mouth region
+                mouth_region = result[y:y+h, x:x+w].copy()
                 
-                print(f"🎭 SIMPLE WARPING: Applied affine transformation successfully")
-                return warped
+                # Calculate transformation for mouth region only
+                src_points = self.original_mouth_points.astype(np.float32) - [x, y]
+                dst_points = mouth_points.astype(np.float32) - [x, y]
+                
+                # Use perspective transform for more natural mouth deformation
+                H = cv2.findHomography(src_points, dst_points, cv2.RANSAC, 5.0)[0]
+                
+                # Apply transformation to mouth region only
+                warped_region = cv2.warpPerspective(mouth_region, H, (w, h), 
+                                                   flags=cv2.INTER_LINEAR, 
+                                                   borderMode=cv2.BORDER_REFLECT)
+                
+                # Create a mask for smooth blending
+                mask = np.zeros((h, w), dtype=np.uint8)
+                mouth_contour = src_points.astype(np.int32)
+                cv2.fillPoly(mask, [mouth_contour], 255)
+                mask = cv2.GaussianBlur(mask, (21, 21), 0)
+                mask = mask.astype(np.float32) / 255.0
+                mask = np.stack([mask, mask, mask], axis=2)
+                
+                # Blend warped region with original
+                blended_region = mouth_region * (1 - mask) + warped_region * mask
+                
+                # Apply back to result
+                result[y:y+h, x:x+w] = blended_region
+                
+                print(f"🎭 LOCAL WARPING: Applied mouth-only deformation successfully")
+                return result
                 
             except Exception as e:
-                print(f"🎭 SIMPLE WARPING ERROR: {e}, using base face")
+                print(f"🎭 LOCAL WARPING ERROR: {e}, using base face")
                 return self.base_face
             
         except Exception as e:
