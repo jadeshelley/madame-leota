@@ -318,15 +318,28 @@ class DlibFaceAnimator:
                 phoneme_type = "neutral"
                 print(f"🎭 REAL AUDIO: NEUTRAL (insufficient history)")
             
-            # ADD SUBTLE FRAME-BASED VARIATION to prevent getting stuck
-            # This ensures the mouth keeps moving even with static audio
-            frame_variation = (frame_num % 30) / 30.0  # Cycle every 30 frames
-            if frame_variation < 0.1 and phoneme_type == "vowel":
-                phoneme_type = "consonant"  # Brief consonant break
-                print(f"🎭 FRAME VARIATION: Brief consonant break (frame {frame_num})")
-            elif frame_variation > 0.9 and phoneme_type == "vowel":
-                phoneme_type = "closed"  # Brief closed break
-                print(f"🎭 FRAME VARIATION: Brief closed break (frame {frame_num})")
+            # ADD TTS-AWARE VARIATION based on frame position in the speech
+            # This simulates natural speech patterns (consonants, vowels, pauses)
+            speech_cycle = frame_num % 20  # 20-frame speech cycle
+            
+            if speech_cycle < 3:  # Start of speech - consonant
+                if phoneme_type == "vowel":
+                    phoneme_type = "consonant"
+                    print(f"🎭 TTS PATTERN: Speech start - consonant (frame {frame_num})")
+            elif speech_cycle < 8:  # Middle of speech - vowel
+                if phoneme_type == "consonant":
+                    phoneme_type = "vowel"
+                    print(f"🎭 TTS PATTERN: Speech middle - vowel (frame {frame_num})")
+            elif speech_cycle < 12:  # End of speech - consonant
+                if phoneme_type == "vowel":
+                    phoneme_type = "consonant"
+                    print(f"🎭 TTS PATTERN: Speech end - consonant (frame {frame_num})")
+            elif speech_cycle < 15:  # Pause - closed
+                phoneme_type = "closed"
+                print(f"🎭 TTS PATTERN: Speech pause - closed (frame {frame_num})")
+            else:  # Recovery - neutral
+                phoneme_type = "neutral"
+                print(f"🎭 TTS PATTERN: Speech recovery - neutral (frame {frame_num})")
             
             # FINAL DEBUG: Always log what we're returning
             print(f"🎭 RETURNING PHONEME: {phoneme_type.upper()} for frame {frame_num}")

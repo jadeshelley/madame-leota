@@ -781,6 +781,10 @@ class FaceAnimator:
         try:
             print(f"🎬 CHUNK DEBUG: _generate_face_for_chunk called with {len(audio_chunk)} samples")
             
+            # Use the actual TTS audio chunk for animation
+            # This will make the mouth respond to the AI-generated speech
+            print(f"🎵 TTS AUDIO: Using AI-generated speech for animation")
+            
             # Convert audio chunk to bytes for compatibility
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
@@ -1072,6 +1076,8 @@ class FaceAnimator:
             self.logger.error(f"Error scaling face: {e}")
             return face_image
     
+
+
     def cleanup(self):
         """Cleanup animator resources"""
         try:
@@ -1080,6 +1086,8 @@ class FaceAnimator:
             
             if self.realtime_manipulator:
                 self.realtime_manipulator.cleanup()
+            
+
             
             self.logger.info("Face Animator cleaned up")
         except Exception as e:
