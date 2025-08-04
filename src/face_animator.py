@@ -788,7 +788,7 @@ class FaceAnimator:
             # Try dlib system first (most accurate)
             if self.dlib_face_animator:
                 print(f"✅ DLIB: Using facial landmark animation")
-                face = self.dlib_face_animator.generate_face_from_audio(audio_bytes, duration)
+                face = self.dlib_face_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"✅ DLIB: Generated face with shape: {face.shape}")
                 return face
             

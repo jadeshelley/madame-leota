@@ -266,21 +266,7 @@ class DlibFaceAnimator:
                     phoneme_type = "neutral"
                     print(f"🎭 REAL AUDIO RESPONSE: NEUTRAL (amp={avg_amp:.4f})")
                 
-                # Add some variation based on frame number to ensure we see changes
-                # This will make the mouth change even if audio is static
-                frame_variation = (frame_num % 20) / 20.0  # 0.0 to 1.0 over 20 frames
-                if frame_variation < 0.25:
-                    phoneme_type = "vowel"
-                    print(f"🎭 FRAME VARIATION: VOWEL (frame {frame_num}, variation {frame_variation:.2f})")
-                elif frame_variation < 0.5:
-                    phoneme_type = "consonant"
-                    print(f"🎭 FRAME VARIATION: CONSONANT (frame {frame_num}, variation {frame_variation:.2f})")
-                elif frame_variation < 0.75:
-                    phoneme_type = "closed"
-                    print(f"🎭 FRAME VARIATION: CLOSED (frame {frame_num}, variation {frame_variation:.2f})")
-                else:
-                    phoneme_type = "neutral"
-                    print(f"🎭 FRAME VARIATION: NEUTRAL (frame {frame_num}, variation {frame_variation:.2f})")
+
                 
                 # CRITICAL DEBUG: Log the final phoneme type that will be used
                 print(f"🎭 FINAL PHONEME SELECTED: {phoneme_type.upper()} for frame {frame_num}")
