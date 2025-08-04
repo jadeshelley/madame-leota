@@ -133,19 +133,8 @@ class DisplayManager:
             self.screen.fill(self.background_color)
             self.logger.info(f"🎨 CLEAR DEBUG: Screen cleared successfully")
             
-            # Add a simple test pattern to verify the screen is working
-            try:
-                # Draw a bright red rectangle in the corner to test if drawing works
-                test_rect = pygame.Rect(10, 10, 50, 50)
-                pygame.draw.rect(self.screen, (255, 0, 0), test_rect)  # Bright red
-                self.logger.info(f"🎨 CLEAR DEBUG: Test pattern drawn - look for red square in top-left corner")
-                
-                # CRITICAL: Update the display to show the test pattern
-                pygame.display.flip()
-                self.logger.info(f"🎨 CLEAR DEBUG: Display flipped - red square should now be visible!")
-                
-            except Exception as test_error:
-                self.logger.error(f"🎨 CLEAR DEBUG: Test pattern failed: {test_error}")
+            # Screen cleared successfully - no test pattern needed
+            self.logger.info(f"🎨 CLEAR DEBUG: Screen cleared successfully")
             
         except Exception as e:
             self.logger.error(f"Error clearing screen: {e}")
