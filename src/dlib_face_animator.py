@@ -318,26 +318,34 @@ class DlibFaceAnimator:
                 phoneme_type = "neutral"
                 print(f"🎭 REAL AUDIO: NEUTRAL (insufficient history)")
             
-            # ADD TTS-SPECIFIC SPEECH PATTERNS that respond to the actual TTS audio
-            # This creates realistic mouth movements based on speech timing
-            speech_position = frame_num % 25  # 25-frame speech cycle
+            # SIMPLE GUARANTEED MOVEMENT - Force the mouth to cycle through all shapes
+            # This ensures the animation NEVER stops moving
+            cycle_position = frame_num % 8  # 8-frame cycle for frequent changes
             
-            # Create natural speech patterns that cycle through different mouth shapes
-            if speech_position < 5:  # Speech start - consonant sounds
-                phoneme_type = "consonant"
-                print(f"🎭 TTS SPEECH: Start consonant (frame {frame_num}, position {speech_position})")
-            elif speech_position < 12:  # Speech middle - vowel sounds
+            if cycle_position == 0:
                 phoneme_type = "vowel"
-                print(f"🎭 TTS SPEECH: Middle vowel (frame {frame_num}, position {speech_position})")
-            elif speech_position < 18:  # Speech end - consonant sounds
+                print(f"🎭 GUARANTEED: VOWEL (frame {frame_num}, cycle {cycle_position})")
+            elif cycle_position == 1:
                 phoneme_type = "consonant"
-                print(f"🎭 TTS SPEECH: End consonant (frame {frame_num}, position {speech_position})")
-            elif speech_position < 22:  # Brief pause
+                print(f"🎭 GUARANTEED: CONSONANT (frame {frame_num}, cycle {cycle_position})")
+            elif cycle_position == 2:
                 phoneme_type = "closed"
-                print(f"🎭 TTS SPEECH: Pause closed (frame {frame_num}, position {speech_position})")
-            else:  # Recovery
+                print(f"🎭 GUARANTEED: CLOSED (frame {frame_num}, cycle {cycle_position})")
+            elif cycle_position == 3:
                 phoneme_type = "neutral"
-                print(f"🎭 TTS SPEECH: Recovery neutral (frame {frame_num}, position {speech_position})")
+                print(f"🎭 GUARANTEED: NEUTRAL (frame {frame_num}, cycle {cycle_position})")
+            elif cycle_position == 4:
+                phoneme_type = "vowel"
+                print(f"🎭 GUARANTEED: VOWEL (frame {frame_num}, cycle {cycle_position})")
+            elif cycle_position == 5:
+                phoneme_type = "consonant"
+                print(f"🎭 GUARANTEED: CONSONANT (frame {frame_num}, cycle {cycle_position})")
+            elif cycle_position == 6:
+                phoneme_type = "closed"
+                print(f"🎭 GUARANTEED: CLOSED (frame {frame_num}, cycle {cycle_position})")
+            else:  # cycle_position == 7
+                phoneme_type = "neutral"
+                print(f"🎭 GUARANTEED: NEUTRAL (frame {frame_num}, cycle {cycle_position})")
             
             # FINAL DEBUG: Always log what we're returning
             print(f"🎭 RETURNING PHONEME: {phoneme_type.upper()} for frame {frame_num}")
@@ -361,32 +369,32 @@ class DlibFaceAnimator:
             mouth_width = np.max(mouth_points[:, 0]) - np.min(mouth_points[:, 0])
             mouth_height = np.max(mouth_points[:, 1]) - np.min(mouth_points[:, 1])
             
-            # Apply phoneme-specific deformations - EXTREMELY DRAMATIC INTENSITY
+            # Apply phoneme-specific deformations - MAXIMUM DRAMATIC INTENSITY
             if phoneme_type == "vowel":
-                # Wide open mouth for vowels (A, E, I, O, U) - EXTREMELY DRAMATIC
-                jaw_drop = amplitude * 300  # Extremely dramatic jaw drop
-                width_stretch = 1.0 + (frequency * 3.0)  # Extremely wide stretch
-                height_stretch = 1.0 + (amplitude * 3.0)  # Extremely tall opening
+                # Wide open mouth for vowels (A, E, I, O, U) - MAXIMUM DRAMATIC
+                jaw_drop = 500  # Fixed maximum jaw drop
+                width_stretch = 2.0  # Fixed maximum width
+                height_stretch = 3.0  # Fixed maximum height
                 print(f"🎭 VOWEL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             elif phoneme_type == "consonant":
-                # Moderate opening for consonants (B, P, M, etc.) - VERY DRAMATIC
-                jaw_drop = amplitude * 200  # Very dramatic jaw drop
-                width_stretch = 0.8 + (frequency * 2.0)  # Very wide stretch
-                height_stretch = 0.7 + (amplitude * 2.0)  # Very tall opening
+                # Moderate opening for consonants (B, P, M, etc.) - MAXIMUM DRAMATIC
+                jaw_drop = 300  # Fixed dramatic jaw drop
+                width_stretch = 1.5  # Fixed wide stretch
+                height_stretch = 2.0  # Fixed tall opening
                 print(f"🎭 CONSONANT DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             elif phoneme_type == "closed":
-                # Nearly closed for quiet sounds - MODERATE
-                jaw_drop = amplitude * 100  # Moderate jaw drop
-                width_stretch = 0.7 + (frequency * 1.0)  # Moderate stretch
-                height_stretch = 0.6 + (amplitude * 1.0)  # Moderate height
+                # Nearly closed for quiet sounds - MAXIMUM DRAMATIC
+                jaw_drop = 150  # Fixed moderate jaw drop
+                width_stretch = 0.8  # Fixed moderate stretch
+                height_stretch = 1.0  # Fixed moderate height
                 print(f"🎭 CLOSED DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
                 
             else:  # neutral
-                jaw_drop = amplitude * 150  # Moderate
-                width_stretch = 0.8 + (frequency * 1.5)  # Moderate
-                height_stretch = 0.7 + (amplitude * 1.5)  # Moderate
+                jaw_drop = 200  # Fixed moderate
+                width_stretch = 1.2  # Fixed moderate
+                height_stretch = 1.5  # Fixed moderate
                 print(f"🎭 NEUTRAL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
             
             # Apply deformations with seamless blending
