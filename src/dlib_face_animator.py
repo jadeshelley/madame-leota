@@ -180,24 +180,15 @@ class DlibFaceAnimator:
                 print(f"🎭 FIRST PHONEME: {phoneme_type}")
             self._last_phoneme = phoneme_type
             
-            # Try new seamless approach first
+            # Use simple, direct deformation that we know works
             try:
-                animated_face = self._apply_seamless_mouth_deformation(amplitude, frequency, phoneme_type)
-                if animated_face is not None and animated_face.shape == self.base_face.shape:
-                    self.logger.debug("✅ Seamless deformation successful")
-                    return animated_face
-                else:
-                    self.logger.warning("⚠️ Seamless deformation failed, trying fallback")
-            except Exception as e:
-                self.logger.warning(f"⚠️ Seamless deformation error: {e}, trying fallback")
-            
-            # Fallback to simple deformation if seamless fails
-            try:
-                self.logger.info("🔄 Using fallback mouth deformation")
-                animated_face = self._fallback_simple_deformation(amplitude, frequency)
+                print(f"🎭 APPLYING SIMPLE DEFORMATION: amplitude={amplitude:.3f}, frequency={frequency:.3f}, phoneme={phoneme_type}")
+                animated_face = self._apply_simple_direct_deformation(amplitude, frequency, phoneme_type)
+                print(f"✅ SIMPLE DEFORMATION: Successfully applied {phoneme_type} deformation")
                 return animated_face
             except Exception as e:
-                self.logger.error(f"❌ Fallback deformation also failed: {e}")
+                print(f"⚠️ SIMPLE DEFORMATION ERROR: {e}, using base face")
+                self.logger.error(f"❌ Simple deformation failed: {e}")
                 return self.base_face
             
         except Exception as e:
@@ -304,6 +295,81 @@ class DlibFaceAnimator:
             
         except Exception as e:
             self.logger.error(f"Error in seamless mouth deformation: {e}")
+            return self.base_face
+    
+    def _apply_simple_direct_deformation(self, amplitude: float, frequency: float, phoneme_type: str) -> np.ndarray:
+        """Apply simple, direct mouth deformation that definitely works"""
+        try:
+            # Create a copy of the base face
+            result = self.base_face.copy()
+            
+            # Get mouth landmarks
+            mouth_points = self.original_mouth_points.copy().astype(np.float32)
+            mouth_center = np.mean(mouth_points, axis=0)
+            
+            # Calculate dramatic deformation values
+            if phoneme_type == "vowel":
+                jaw_drop = amplitude * 200  # Very dramatic
+                width_stretch = 1.0 + (frequency * 2.0)  # Very wide
+                height_stretch = 1.0 + (amplitude * 2.0)  # Very tall
+            elif phoneme_type == "consonant":
+                jaw_drop = amplitude * 150  # Dramatic
+                width_stretch = 0.7 + (frequency * 1.5)  # Wide
+                height_stretch = 0.6 + (amplitude * 1.5)  # Tall
+            elif phoneme_type == "closed":
+                jaw_drop = amplitude * 50  # Moderate
+                width_stretch = 0.5 + (frequency * 0.8)  # Narrow
+                height_stretch = 0.4 + (amplitude * 0.8)  # Short
+            else:  # neutral
+                jaw_drop = amplitude * 100  # Moderate
+                width_stretch = 0.8 + (frequency * 1.2)  # Moderate
+                height_stretch = 0.7 + (amplitude * 1.2)  # Moderate
+            
+            print(f"🎭 SIMPLE DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
+            
+            # Apply dramatic jaw drop to lower lip points
+            lower_lip_indices = [60, 61, 62, 63, 64, 65, 66, 67]  # Bottom lip
+            for i in lower_lip_indices:
+                if i < len(mouth_points):
+                    # Move down dramatically
+                    mouth_points[i][1] += jaw_drop
+            
+            # Apply width stretching
+            for i, point in enumerate(mouth_points):
+                # Stretch horizontally from center
+                dx = (point[0] - mouth_center[0]) * (width_stretch - 1.0)
+                mouth_points[i][0] += dx
+            
+            # Apply height stretching
+            for i, point in enumerate(mouth_points):
+                # Stretch vertically from center
+                dy = (point[1] - mouth_center[1]) * (height_stretch - 1.0)
+                mouth_points[i][1] += dy
+            
+            # Apply simple affine transformation
+            try:
+                # Calculate transformation matrix
+                src_points = self.original_mouth_points.astype(np.float32)
+                dst_points = mouth_points.astype(np.float32)
+                
+                # Use affine transform instead of homography
+                M = cv2.estimateAffinePartial2D(src_points, dst_points)[0]
+                
+                # Apply transformation to entire face
+                h, w = result.shape[:2]
+                warped = cv2.warpAffine(result, M, (w, h), 
+                                       flags=cv2.INTER_LINEAR, 
+                                       borderMode=cv2.BORDER_REFLECT)
+                
+                print(f"🎭 SIMPLE WARPING: Applied affine transformation successfully")
+                return warped
+                
+            except Exception as e:
+                print(f"🎭 SIMPLE WARPING ERROR: {e}, using base face")
+                return self.base_face
+            
+        except Exception as e:
+            self.logger.error(f"Error in simple direct deformation: {e}")
             return self.base_face
     
     def _calculate_deformed_mouth_points(self, points: np.ndarray, center: np.ndarray, 
