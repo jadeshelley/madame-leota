@@ -203,6 +203,7 @@ class DlibFaceAnimator:
             # Use frame counter for testing variation
             frame_num = getattr(self, '_frame_counter', 0)
             self._frame_counter = frame_num + 1
+            print(f"🎭 FRAME COUNTER: frame_num={frame_num}, _frame_counter={self._frame_counter}")
             
             # Basic amplitude and frequency analysis
             amplitude = self._analyze_amplitude(audio_array)
@@ -256,10 +257,15 @@ class DlibFaceAnimator:
                 else:
                     phoneme_type = "neutral"
                     print(f"🎭 ARTIFICIAL OVERRIDE: NEUTRAL (frame {frame_num}, position {cycle_position})")
+                
+                # CRITICAL DEBUG: Log the final phoneme type that will be used
+                print(f"🎭 FINAL PHONEME SELECTED: {phoneme_type.upper()} for frame {frame_num}")
             else:
                 phoneme_type = "neutral"
                 print(f"🎭 REAL AUDIO: NEUTRAL (insufficient history)")
             
+            # FINAL DEBUG: Always log what we're returning
+            print(f"🎭 RETURNING PHONEME: {phoneme_type.upper()} for frame {frame_num}")
             return amplitude, frequency, phoneme_type
             
         except Exception as e:
@@ -432,6 +438,8 @@ class DlibFaceAnimator:
     def _apply_ultra_simple_deformation(self, amplitude: float, frequency: float, phoneme_type: str) -> np.ndarray:
         """Ultra-simple deformation that just draws a mouth shape"""
         try:
+            print(f"🎭 ULTRA-SIMPLE CALLED: amplitude={amplitude:.3f}, frequency={frequency:.3f}, phoneme_type='{phoneme_type}'")
+            
             # Create a copy of the base face
             result = self.base_face.copy()
             
