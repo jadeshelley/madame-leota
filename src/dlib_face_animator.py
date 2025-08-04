@@ -252,16 +252,16 @@ class DlibFaceAnimator:
                 
                 # REAL AUDIO RESPONSE - use actual audio patterns instead of artificial cycling
                 # ALWAYS use real audio analysis - no more artificial fallback
-                # Use amplitude directly to determine phoneme type
-                if avg_amp > 0.8:
+                # Use amplitude directly to determine phoneme type (adjusted for new range)
+                if avg_amp > 1.2:
                     phoneme_type = "vowel"
-                    print(f"🎭 REAL AUDIO RESPONSE: VOWEL (amp={avg_amp:.4f} > 0.8)")
-                elif avg_amp > 0.6:
+                    print(f"🎭 REAL AUDIO RESPONSE: VOWEL (amp={avg_amp:.4f} > 1.2)")
+                elif avg_amp > 1.0:
                     phoneme_type = "consonant"
-                    print(f"🎭 REAL AUDIO RESPONSE: CONSONANT (amp={avg_amp:.4f} > 0.6)")
-                elif avg_amp < 0.4:
+                    print(f"🎭 REAL AUDIO RESPONSE: CONSONANT (amp={avg_amp:.4f} > 1.0)")
+                elif avg_amp < 0.8:
                     phoneme_type = "closed"
-                    print(f"🎭 REAL AUDIO RESPONSE: CLOSED (amp={avg_amp:.4f} < 0.4)")
+                    print(f"🎭 REAL AUDIO RESPONSE: CLOSED (amp={avg_amp:.4f} < 0.8)")
                 else:
                     phoneme_type = "neutral"
                     print(f"🎭 REAL AUDIO RESPONSE: NEUTRAL (amp={avg_amp:.4f})")
@@ -679,8 +679,8 @@ class DlibFaceAnimator:
             # Calculate RMS amplitude
             rms = np.sqrt(np.mean(audio_array**2))
             
-            # Use RMS directly without tanh saturation for better variation detection
-            amplitude = min(rms * 4.0, 1.0)  # Scale RMS but cap at 1.0, no tanh saturation
+            # Use RMS directly without any capping for maximum variation detection
+            amplitude = rms * 2.0  # Scale RMS by 2.0, no capping at all
             
             print(f"📊 AMPLITUDE ANALYSIS: rms={rms:.4f}, amplitude={amplitude:.4f}")
             return float(amplitude)
