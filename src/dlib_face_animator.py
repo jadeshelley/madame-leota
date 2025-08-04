@@ -180,16 +180,23 @@ class DlibFaceAnimator:
                 print(f"🎭 FIRST PHONEME: {phoneme_type}")
             self._last_phoneme = phoneme_type
             
-            # Use ultra-simple deformation that definitely works
+            # Use real mouth deformation on the actual face
             try:
-                print(f"🎭 APPLYING ULTRA-SIMPLE DEFORMATION: amplitude={amplitude:.3f}, frequency={frequency:.3f}, phoneme={phoneme_type}")
-                animated_face = self._apply_ultra_simple_deformation(amplitude, frequency, phoneme_type)
-                print(f"✅ ULTRA-SIMPLE DEFORMATION: Successfully applied {phoneme_type} deformation")
+                print(f"🎭 APPLYING REAL MOUTH DEFORMATION: amplitude={amplitude:.3f}, frequency={frequency:.3f}, phoneme={phoneme_type}")
+                animated_face = self._apply_seamless_mouth_deformation(amplitude, frequency, phoneme_type)
+                print(f"✅ REAL MOUTH DEFORMATION: Successfully applied {phoneme_type} deformation")
                 return animated_face
             except Exception as e:
-                print(f"⚠️ ULTRA-SIMPLE DEFORMATION ERROR: {e}, using base face")
-                self.logger.error(f"❌ Ultra-simple deformation failed: {e}")
-                return self.base_face
+                print(f"⚠️ REAL MOUTH DEFORMATION ERROR: {e}, trying fallback")
+                self.logger.error(f"❌ Real mouth deformation failed: {e}")
+                # Fallback to simple deformation
+                try:
+                    animated_face = self._apply_simple_direct_deformation(amplitude, frequency, phoneme_type)
+                    print(f"✅ FALLBACK DEFORMATION: Successfully applied {phoneme_type} deformation")
+                    return animated_face
+                except Exception as e2:
+                    print(f"⚠️ FALLBACK ALSO FAILED: {e2}, using base face")
+                    return self.base_face
             
         except Exception as e:
             self.logger.error(f"Error in generate_face_for_audio_chunk: {e}")
