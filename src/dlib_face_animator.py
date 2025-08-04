@@ -214,16 +214,25 @@ class DlibFaceAnimator:
             if len(self.audio_history) > self.max_history:
                 self.audio_history.pop(0)
             
-            # Analyze trends for better lip-sync
-            if len(self.audio_history) >= 3:
-                recent_amps = [a for a, f in self.audio_history[-3:]]
-                recent_freqs = [f for a, f in self.audio_history[-3:]]
+            # Analyze trends for better lip-sync - use more recent history for better responsiveness
+            if len(self.audio_history) >= 2:  # Reduced from 3 to 2 for faster response
+                recent_amps = [a for a, f in self.audio_history[-2:]]  # Use last 2 instead of 3
+                recent_freqs = [f for a, f in self.audio_history[-2:]]
                 
                 # Detect phoneme types based on audio patterns
                 avg_amp = np.mean(recent_amps)
                 avg_freq = np.mean(recent_freqs)
                 amp_variance = np.var(recent_amps)
                 freq_variance = np.var(recent_freqs)
+                
+                # Also analyze the current frame's amplitude vs the previous frame
+                if len(self.audio_history) >= 2:
+                    current_amp = amplitude
+                    previous_amp = self.audio_history[-2][0]  # Previous frame's amplitude
+                    amp_change = abs(current_amp - previous_amp)  # How much amplitude changed
+                    print(f"🎭 AMPLITUDE CHANGE: current={current_amp:.4f}, previous={previous_amp:.4f}, change={amp_change:.4f}")
+                else:
+                    amp_change = 0.0
                 
                 print(f"🎭 REAL AUDIO DEBUG: avg_amp={avg_amp:.4f}, avg_freq={avg_freq:.4f}, amp_var={amp_variance:.4f}, freq_var={freq_variance:.4f}")
                 
@@ -241,22 +250,38 @@ class DlibFaceAnimator:
                     phoneme_type = "neutral"
                     print(f"🎭 REAL AUDIO: NEUTRAL (amp={avg_amp:.4f})")
                 
-                # Add artificial variation for testing - cycle every 15 frames
-                cycle_length = 15
-                cycle_position = frame_num % cycle_length
-                
-                if cycle_position < 5:
-                    phoneme_type = "vowel"
-                    print(f"🎭 ARTIFICIAL OVERRIDE: VOWEL (frame {frame_num}, position {cycle_position})")
-                elif cycle_position < 10:
-                    phoneme_type = "consonant"
-                    print(f"🎭 ARTIFICIAL OVERRIDE: CONSONANT (frame {frame_num}, position {cycle_position})")
-                elif cycle_position < 13:
-                    phoneme_type = "closed"
-                    print(f"🎭 ARTIFICIAL OVERRIDE: CLOSED (frame {frame_num}, position {cycle_position})")
+                # REAL AUDIO RESPONSE - use actual audio patterns instead of artificial cycling
+                # Look for actual variation in the audio - much more sensitive thresholds
+                if amp_change > 0.01 or amp_variance > 0.0001:  # Much more sensitive to changes
+                    if avg_amp > 0.95:
+                        phoneme_type = "vowel"
+                        print(f"🎭 REAL AUDIO RESPONSE: VOWEL (amp={avg_amp:.4f} > 0.95, change={amp_change:.4f})")
+                    elif avg_amp > 0.85:
+                        phoneme_type = "consonant"
+                        print(f"🎭 REAL AUDIO RESPONSE: CONSONANT (amp={avg_amp:.4f} > 0.85, change={amp_change:.4f})")
+                    elif avg_amp < 0.7:
+                        phoneme_type = "closed"
+                        print(f"🎭 REAL AUDIO RESPONSE: CLOSED (amp={avg_amp:.4f} < 0.7, change={amp_change:.4f})")
+                    else:
+                        phoneme_type = "neutral"
+                        print(f"🎭 REAL AUDIO RESPONSE: NEUTRAL (amp={avg_amp:.4f}, change={amp_change:.4f})")
                 else:
-                    phoneme_type = "neutral"
-                    print(f"🎭 ARTIFICIAL OVERRIDE: NEUTRAL (frame {frame_num}, position {cycle_position})")
+                    # Fallback to artificial cycling only when no real variation detected
+                    cycle_length = 15
+                    cycle_position = frame_num % cycle_length
+                    
+                    if cycle_position < 5:
+                        phoneme_type = "vowel"
+                        print(f"🎭 FALLBACK ARTIFICIAL: VOWEL (frame {frame_num}, position {cycle_position})")
+                    elif cycle_position < 10:
+                        phoneme_type = "consonant"
+                        print(f"🎭 FALLBACK ARTIFICIAL: CONSONANT (frame {frame_num}, position {cycle_position})")
+                    elif cycle_position < 13:
+                        phoneme_type = "closed"
+                        print(f"🎭 FALLBACK ARTIFICIAL: CLOSED (frame {frame_num}, position {cycle_position})")
+                    else:
+                        phoneme_type = "neutral"
+                        print(f"🎭 FALLBACK ARTIFICIAL: NEUTRAL (frame {frame_num}, position {cycle_position})")
                 
                 # CRITICAL DEBUG: Log the final phoneme type that will be used
                 print(f"🎭 FINAL PHONEME SELECTED: {phoneme_type.upper()} for frame {frame_num}")
@@ -447,23 +472,23 @@ class DlibFaceAnimator:
             mouth_center = np.mean(self.original_mouth_points, axis=0)
             center_x, center_y = int(mouth_center[0]), int(mouth_center[1])
             
-            # Calculate mouth size and color based on phoneme - MORE DISTINCT SIZES
+            # Calculate mouth size and color based on phoneme - EXTREMELY DISTINCT SIZES
             if phoneme_type == "vowel":
-                mouth_width = int(120 + amplitude * 150)  # Much larger
-                mouth_height = int(100 + amplitude * 180)  # Much taller
-                color = (0, 255, 0)  # Green
+                mouth_width = int(200 + amplitude * 200)  # HUGE
+                mouth_height = int(150 + amplitude * 250)  # HUGE
+                color = (0, 255, 0)  # Bright Green
             elif phoneme_type == "consonant":
-                mouth_width = int(80 + amplitude * 120)   # Medium
-                mouth_height = int(60 + amplitude * 140)  # Medium
-                color = (0, 0, 255)  # Red
+                mouth_width = int(100 + amplitude * 150)   # Large
+                mouth_height = int(80 + amplitude * 180)   # Large
+                color = (0, 0, 255)  # Bright Red
             elif phoneme_type == "closed":
-                mouth_width = int(30 + amplitude * 60)    # Small
-                mouth_height = int(15 + amplitude * 40)   # Small
-                color = (255, 0, 0)  # Blue
+                mouth_width = int(20 + amplitude * 40)     # Tiny
+                mouth_height = int(10 + amplitude * 30)    # Tiny
+                color = (255, 0, 0)  # Bright Blue
             else:  # neutral
-                mouth_width = int(60 + amplitude * 100)   # Medium-small
-                mouth_height = int(45 + amplitude * 110)  # Medium-small
-                color = (255, 255, 0)  # Yellow
+                mouth_width = int(60 + amplitude * 120)    # Medium
+                mouth_height = int(50 + amplitude * 140)   # Medium
+                color = (255, 255, 0)  # Bright Yellow
             
             print(f"🎭 ULTRA-SIMPLE: Drawing {phoneme_type} mouth at ({center_x}, {center_y}) size {mouth_width}x{mouth_height}")
             
@@ -475,16 +500,18 @@ class DlibFaceAnimator:
             cv2.ellipse(result, (center_x, center_y), (mouth_width//2, mouth_height//2), 
                        0, 0, 360, (255, 255, 255), 5)  # Thicker white border
             
-            # Add text label for debugging
+            # Add text label for debugging - MUCH LARGER AND MORE VISIBLE
             font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 1.0
-            thickness = 2
+            font_scale = 2.0  # Much larger text
+            thickness = 4     # Much thicker text
             text = phoneme_type.upper()
             text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
             text_x = center_x - text_size[0] // 2
-            text_y = center_y + text_size[1] // 2 + 50  # Below the mouth
+            text_y = center_y + text_size[1] // 2 + 80  # Further below the mouth
             
-            cv2.putText(result, text, (text_x, text_y), font, font_scale, (255, 255, 255), thickness)
+            # Add black background for better visibility
+            cv2.putText(result, text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness + 2)  # Black outline
+            cv2.putText(result, text, (text_x, text_y), font, font_scale, (255, 255, 255), thickness)  # White text
             
             print(f"🎭 ULTRA-SIMPLE: Drew {phoneme_type} mouth successfully")
             return result
