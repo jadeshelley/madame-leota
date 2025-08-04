@@ -292,8 +292,13 @@ class DlibFaceAnimator:
                 mouth_points, mouth_center, jaw_drop, width_stretch, height_stretch
             )
             
+            print(f"🎭 MOUTH POINTS: Original center {mouth_center}, new center {np.mean(new_mouth_points, axis=0)}")
+            print(f"🎭 DEFORMATION: jaw_drop={jaw_drop:.1f}, width_stretch={width_stretch:.2f}, height_stretch={height_stretch:.2f}")
+            
             # Apply seamless warping without visible boxes
             result = self._seamless_mouth_warp(result, mouth_points, new_mouth_points)
+            
+            print(f"🎭 WARPING: Applied warping, result shape: {result.shape}")
             
             return result
             
@@ -376,6 +381,7 @@ class DlibFaceAnimator:
             
             # Apply perspective transform to the region
             try:
+                print(f"🎭 WARPING: Attempting homography transformation...")
                 # Calculate homography matrix
                 H = cv2.findHomography(src_region, dst_region, cv2.RANSAC, 5.0)[0]
                 
@@ -390,8 +396,11 @@ class DlibFaceAnimator:
                 # Apply to result
                 result[y:y+h, x:x+w] = blended_region
                 
+                print(f"🎭 WARPING: Homography transformation successful!")
+                
             except Exception as e:
                 # Fallback to simple scaling if homography fails
+                print(f"🎭 WARPING: Homography failed, using fallback: {e}")
                 self.logger.debug(f"Homography failed, using fallback: {e}")
                 result = self._fallback_mouth_deformation(result, src_points, dst_points)
             
