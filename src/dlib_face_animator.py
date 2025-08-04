@@ -337,6 +337,16 @@ class DlibFaceAnimator:
                 dy = (point[1] - center[1]) * (height_stretch - 1.0)
                 new_points[i][1] += dy
             
+            # Debug: Check if points actually changed
+            original_center = np.mean(points, axis=0)
+            new_center = np.mean(new_points, axis=0)
+            print(f"🎭 POINT DEBUG: Original center {original_center}, new center {new_center}")
+            print(f"🎭 POINT DEBUG: Center change: {new_center - original_center}")
+            
+            # Check if any points moved significantly
+            max_change = np.max(np.abs(new_points - points))
+            print(f"🎭 POINT DEBUG: Maximum point change: {max_change:.3f} pixels")
+            
             return new_points
             
         except Exception as e:
