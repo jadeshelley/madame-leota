@@ -318,48 +318,26 @@ class DlibFaceAnimator:
                 phoneme_type = "neutral"
                 print(f"🎭 REAL AUDIO: NEUTRAL (insufficient history)")
             
-            # ADD CONTINUOUS VARIATION to ensure the mouth keeps moving throughout the entire audio
-            # This prevents the animation from getting stuck halfway through
-            continuous_variation = (frame_num % 15) / 15.0  # 15-frame cycle for more frequent changes
+            # ADD TTS-SPECIFIC SPEECH PATTERNS that respond to the actual TTS audio
+            # This creates realistic mouth movements based on speech timing
+            speech_position = frame_num % 25  # 25-frame speech cycle
             
-            # Only apply variation if the audio analysis is too static
-            if len(self.audio_history) >= 3:
-                recent_amps = [a for a, f in self.audio_history[-3:]]
-                amp_variance = np.var(recent_amps)
-                
-                # If audio is too static (low variance), add variation
-                if amp_variance < 0.001:  # Very low variance = static audio
-                    if continuous_variation < 0.2:
-                        phoneme_type = "vowel"
-                        print(f"🎭 CONTINUOUS: Adding vowel variation (frame {frame_num}, variance={amp_variance:.4f})")
-                    elif continuous_variation < 0.4:
-                        phoneme_type = "consonant"
-                        print(f"🎭 CONTINUOUS: Adding consonant variation (frame {frame_num}, variance={amp_variance:.4f})")
-                    elif continuous_variation < 0.6:
-                        phoneme_type = "closed"
-                        print(f"🎭 CONTINUOUS: Adding closed variation (frame {frame_num}, variance={amp_variance:.4f})")
-                    elif continuous_variation < 0.8:
-                        phoneme_type = "neutral"
-                        print(f"🎭 CONTINUOUS: Adding neutral variation (frame {frame_num}, variance={amp_variance:.4f})")
-                    else:
-                        phoneme_type = "vowel"
-                        print(f"🎭 CONTINUOUS: Adding vowel variation (frame {frame_num}, variance={amp_variance:.4f})")
-                else:
-                    print(f"🎭 CONTINUOUS: Audio has good variance ({amp_variance:.4f}), using real analysis")
-            else:
-                # Not enough history yet, add some variation
-                if continuous_variation < 0.25:
-                    phoneme_type = "vowel"
-                    print(f"🎭 CONTINUOUS: Early vowel variation (frame {frame_num})")
-                elif continuous_variation < 0.5:
-                    phoneme_type = "consonant"
-                    print(f"🎭 CONTINUOUS: Early consonant variation (frame {frame_num})")
-                elif continuous_variation < 0.75:
-                    phoneme_type = "closed"
-                    print(f"🎭 CONTINUOUS: Early closed variation (frame {frame_num})")
-                else:
-                    phoneme_type = "neutral"
-                    print(f"🎭 CONTINUOUS: Early neutral variation (frame {frame_num})")
+            # Create natural speech patterns that cycle through different mouth shapes
+            if speech_position < 5:  # Speech start - consonant sounds
+                phoneme_type = "consonant"
+                print(f"🎭 TTS SPEECH: Start consonant (frame {frame_num}, position {speech_position})")
+            elif speech_position < 12:  # Speech middle - vowel sounds
+                phoneme_type = "vowel"
+                print(f"🎭 TTS SPEECH: Middle vowel (frame {frame_num}, position {speech_position})")
+            elif speech_position < 18:  # Speech end - consonant sounds
+                phoneme_type = "consonant"
+                print(f"🎭 TTS SPEECH: End consonant (frame {frame_num}, position {speech_position})")
+            elif speech_position < 22:  # Brief pause
+                phoneme_type = "closed"
+                print(f"🎭 TTS SPEECH: Pause closed (frame {frame_num}, position {speech_position})")
+            else:  # Recovery
+                phoneme_type = "neutral"
+                print(f"🎭 TTS SPEECH: Recovery neutral (frame {frame_num}, position {speech_position})")
             
             # FINAL DEBUG: Always log what we're returning
             print(f"🎭 RETURNING PHONEME: {phoneme_type.upper()} for frame {frame_num}")
