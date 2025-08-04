@@ -249,29 +249,29 @@ class DlibFaceAnimator:
             mouth_width = np.max(mouth_points[:, 0]) - np.min(mouth_points[:, 0])
             mouth_height = np.max(mouth_points[:, 1]) - np.min(mouth_points[:, 1])
             
-            # Apply phoneme-specific deformations
+            # Apply phoneme-specific deformations - INCREASED INTENSITY
             if phoneme_type == "vowel":
                 # Wide open mouth for vowels (A, E, I, O, U)
-                jaw_drop = amplitude * 80  # Very dramatic jaw drop
-                width_stretch = 1.0 + (frequency * 0.6)  # Wide stretch
-                height_stretch = 1.0 + (amplitude * 0.8)  # Tall opening
+                jaw_drop = amplitude * 120  # Very dramatic jaw drop (increased from 80)
+                width_stretch = 1.0 + (frequency * 1.2)  # Wide stretch (increased from 0.6)
+                height_stretch = 1.0 + (amplitude * 1.2)  # Tall opening (increased from 0.8)
                 
             elif phoneme_type == "consonant":
                 # Moderate opening for consonants (B, P, M, etc.)
-                jaw_drop = amplitude * 40  # Moderate jaw drop
-                width_stretch = 0.9 + (frequency * 0.3)  # Slight stretch
-                height_stretch = 0.8 + (amplitude * 0.4)  # Moderate height
+                jaw_drop = amplitude * 80  # Moderate jaw drop (increased from 40)
+                width_stretch = 0.8 + (frequency * 0.8)  # Slight stretch (increased from 0.3)
+                height_stretch = 0.7 + (amplitude * 0.8)  # Moderate height (increased from 0.4)
                 
             elif phoneme_type == "closed":
                 # Nearly closed for quiet sounds
-                jaw_drop = amplitude * 15  # Minimal jaw drop
-                width_stretch = 0.85 + (frequency * 0.2)  # Slight compression
-                height_stretch = 0.7 + (amplitude * 0.2)  # Minimal height
+                jaw_drop = amplitude * 30  # Minimal jaw drop (increased from 15)
+                width_stretch = 0.7 + (frequency * 0.4)  # Slight compression (increased from 0.2)
+                height_stretch = 0.6 + (amplitude * 0.4)  # Minimal height (increased from 0.2)
                 
             else:  # neutral
-                jaw_drop = amplitude * 30
-                width_stretch = 0.9 + (frequency * 0.4)
-                height_stretch = 0.8 + (amplitude * 0.5)
+                jaw_drop = amplitude * 60  # Increased from 30
+                width_stretch = 0.8 + (frequency * 0.8)  # Increased from 0.4
+                height_stretch = 0.7 + (amplitude * 0.8)  # Increased from 0.5
             
             # Apply deformations with seamless blending
             new_mouth_points = self._calculate_deformed_mouth_points(
@@ -471,8 +471,8 @@ class DlibFaceAnimator:
             dominant_freq_idx = np.argmax(fft_magnitude)
             dominant_freq = abs(freqs[dominant_freq_idx])
             
-            # Normalize frequency (0-1 range)
-            frequency = min(dominant_freq / 1000.0, 1.0)  # Normalize to 1kHz
+            # Normalize frequency (0-1 range) - use a much lower base frequency for better sensitivity
+            frequency = min(dominant_freq / 50.0, 1.0)  # Normalize to 50Hz instead of 1kHz for better sensitivity
             
             print(f"🎵 FREQUENCY ANALYSIS: dominant_freq={dominant_freq:.2f}Hz, normalized={frequency:.4f}")
             return float(frequency)
@@ -491,22 +491,22 @@ class DlibFaceAnimator:
             
             # Apply simple deformations based on audio
             
-            # 1. Jaw drop (move bottom lip down)
-            jaw_drop = amplitude * 60  # Dramatic movement
+            # 1. Jaw drop (move bottom lip down) - INCREASED INTENSITY
+            jaw_drop = amplitude * 100  # Dramatic movement (increased from 60)
             bottom_lip_indices = [60, 61, 62, 63, 64, 65, 66, 67]  # Bottom lip in mouth landmarks
             for i in bottom_lip_indices:
                 if i < len(new_mouth_points):
                     new_mouth_points[i][1] += jaw_drop
             
-            # 2. Lip width (squeeze/stretch horizontally)
-            width_factor = 0.7 + (frequency * 0.8)  # 0.7 to 1.5 range
+            # 2. Lip width (squeeze/stretch horizontally) - INCREASED INTENSITY
+            width_factor = 0.6 + (frequency * 1.2)  # 0.6 to 1.8 range (increased from 0.7-1.5)
             for i, point in enumerate(new_mouth_points):
                 # Move points horizontally relative to center
                 dx = (point[0] - mouth_center[0]) * (width_factor - 1.0)
                 new_mouth_points[i][0] += dx
             
-            # 3. Lip height (vertical scaling)
-            height_factor = 0.8 + (amplitude * 0.6)  # 0.8 to 1.4 range
+            # 3. Lip height (vertical scaling) - INCREASED INTENSITY
+            height_factor = 0.6 + (amplitude * 1.0)  # 0.6 to 1.6 range (increased from 0.8-1.4)
             for i, point in enumerate(new_mouth_points):
                 # Move points vertically relative to center
                 dy = (point[1] - mouth_center[1]) * (height_factor - 1.0)
