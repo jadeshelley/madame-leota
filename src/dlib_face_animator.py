@@ -251,17 +251,17 @@ class DlibFaceAnimator:
                     print(f"🎭 REAL AUDIO: NEUTRAL (amp={avg_amp:.4f})")
                 
                 # REAL AUDIO RESPONSE - use actual audio patterns instead of artificial cycling
-                # Look for actual variation in the audio - much more sensitive thresholds
-                if amp_change > 0.01 or amp_variance > 0.0001:  # Much more sensitive to changes
-                    if avg_amp > 0.95:
+                # Look for actual variation in the audio - extremely sensitive thresholds
+                if amp_change > 0.0001 or amp_variance > 0.00001:  # Extremely sensitive to any changes
+                    if avg_amp > 0.98:
                         phoneme_type = "vowel"
-                        print(f"🎭 REAL AUDIO RESPONSE: VOWEL (amp={avg_amp:.4f} > 0.95, change={amp_change:.4f})")
-                    elif avg_amp > 0.85:
+                        print(f"🎭 REAL AUDIO RESPONSE: VOWEL (amp={avg_amp:.4f} > 0.98, change={amp_change:.4f})")
+                    elif avg_amp > 0.90:
                         phoneme_type = "consonant"
-                        print(f"🎭 REAL AUDIO RESPONSE: CONSONANT (amp={avg_amp:.4f} > 0.85, change={amp_change:.4f})")
-                    elif avg_amp < 0.7:
+                        print(f"🎭 REAL AUDIO RESPONSE: CONSONANT (amp={avg_amp:.4f} > 0.90, change={amp_change:.4f})")
+                    elif avg_amp < 0.80:
                         phoneme_type = "closed"
-                        print(f"🎭 REAL AUDIO RESPONSE: CLOSED (amp={avg_amp:.4f} < 0.7, change={amp_change:.4f})")
+                        print(f"🎭 REAL AUDIO RESPONSE: CLOSED (amp={avg_amp:.4f} < 0.80, change={amp_change:.4f})")
                     else:
                         phoneme_type = "neutral"
                         print(f"🎭 REAL AUDIO RESPONSE: NEUTRAL (amp={avg_amp:.4f}, change={amp_change:.4f})")
