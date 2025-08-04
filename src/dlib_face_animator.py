@@ -217,15 +217,15 @@ class DlibFaceAnimator:
                 avg_freq = np.mean(recent_freqs)
                 amp_variance = np.var(recent_amps)
                 
-                # Phoneme classification for better mouth shapes
-                if avg_freq > 0.6 and amp_variance > 0.1:
-                    phoneme_type = "vowel"  # Wide open mouth for vowels
-                elif avg_amp > 0.7:
-                    phoneme_type = "consonant"  # Moderate opening for consonants
-                elif avg_freq < 0.3:
-                    phoneme_type = "closed"  # Nearly closed for quiet sounds
-                else:
-                    phoneme_type = "neutral"
+                            # Phoneme classification for better mouth shapes - INCREASED SENSITIVITY
+            if avg_freq > 0.3 and amp_variance > 0.05:  # Lowered thresholds
+                phoneme_type = "vowel"  # Wide open mouth for vowels
+            elif avg_amp > 0.5:  # Lowered threshold
+                phoneme_type = "consonant"  # Moderate opening for consonants
+            elif avg_freq < 0.1:  # Lowered threshold
+                phoneme_type = "closed"  # Nearly closed for quiet sounds
+            else:
+                phoneme_type = "neutral"
             else:
                 phoneme_type = "neutral"
             
@@ -448,7 +448,7 @@ class DlibFaceAnimator:
             rms = np.sqrt(np.mean(audio_array**2))
             
             # Apply non-linear scaling for better sensitivity
-            amplitude = np.tanh(rms * 4.0)  # Enhanced sensitivity
+            amplitude = np.tanh(rms * 8.0)  # Very enhanced sensitivity for dramatic movements
             
             print(f"📊 AMPLITUDE ANALYSIS: rms={rms:.4f}, amplitude={amplitude:.4f}")
             return float(amplitude)

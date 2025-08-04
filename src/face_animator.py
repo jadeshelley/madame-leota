@@ -621,16 +621,14 @@ class FaceAnimator:
                     print(f"📍 CENTER DEBUG: Face center {face_center} -> Crop {crop_center} -> Scaled {scaled_center}")
                     print(f"👁️ VIEW DEBUG: Full face view centered at {scaled_center}")
                     
-                    # Clear screen and display
-                    self.display_manager.clear_screen()
-                    
                     # Calculate screen position to center the face
                     screen_width, screen_height = self.display_manager.get_screen_size()
                     screen_center_x = (screen_width - target_width) // 2
                     screen_center_y = (screen_height - target_height) // 2
                     screen_position = (screen_center_x, screen_center_y)
                     
-                    # Display the face
+                    # Clear screen and display in one operation to avoid double flips
+                    self.display_manager.clear_screen()
                     self.display_manager.display_image(scaled_face, screen_position)
                     
                     print(f"✅ DISPLAY DEBUG: Frame {frame} - Full face displayed and screen updated successfully")
@@ -759,8 +757,6 @@ class FaceAnimator:
                     screen_position = (screen_center_x, screen_center_y)
                     self.display_manager.display_image(scaled_face, screen_position)
                     
-                    # 🔧 CRITICAL FIX: Actually update the display to show the changes!
-                    self.display_manager.update_display()
                     print(f"✅ DISPLAY DEBUG: Frame {frame} - Full face displayed and screen updated successfully")
                 except Exception as e:
                     print(f"❌ DISPLAY DEBUG: Frame {frame} - Display failed: {e}")
