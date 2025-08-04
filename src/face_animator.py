@@ -554,8 +554,8 @@ class FaceAnimator:
             
             # Real-time animation loop using dlib
             for frame in range(total_frames):
-                if frame >= len(audio_array):
-                    break
+                # Remove the incorrect check - frame should never exceed total_frames
+                # The original check was comparing frame number to audio sample count!
                 
                 # Extract audio chunk for this frame
                 start_idx = frame * samples_per_frame
@@ -681,8 +681,8 @@ class FaceAnimator:
             
             # Real-time animation loop
             for frame in range(total_frames):
-                if frame >= len(audio_array):
-                    break
+                # Remove the incorrect check - frame should never exceed total_frames
+                # The original check was comparing frame number to audio sample count!
                 
                 # Extract audio chunk for this frame
                 start_idx = frame * samples_per_frame
