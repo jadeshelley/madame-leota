@@ -163,11 +163,31 @@ class DlibFaceAnimator:
             if self.base_face is None:
                 return self.base_face
             
-            # Convert numpy array to bytes for our existing method
-            audio_bytes = audio_chunk.tobytes()
+            # Enhanced audio analysis - use audio_chunk directly (it's already a numpy array)
+            amplitude, frequency, phoneme_type = self._enhanced_audio_analysis(audio_chunk)
             
-            # Use our enhanced method
-            return self.generate_face_from_audio(audio_bytes, 0.1)  # Short duration for chunk
+            # Debug logging
+            self.logger.info(f"🎭 dlib: amp={amplitude:.3f}, freq={frequency:.3f}, phoneme={phoneme_type}")
+            
+            # Try new seamless approach first
+            try:
+                animated_face = self._apply_seamless_mouth_deformation(amplitude, frequency, phoneme_type)
+                if animated_face is not None and animated_face.shape == self.base_face.shape:
+                    self.logger.debug("✅ Seamless deformation successful")
+                    return animated_face
+                else:
+                    self.logger.warning("⚠️ Seamless deformation failed, trying fallback")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Seamless deformation error: {e}, trying fallback")
+            
+            # Fallback to simple deformation if seamless fails
+            try:
+                self.logger.info("🔄 Using fallback mouth deformation")
+                animated_face = self._fallback_simple_deformation(amplitude, frequency)
+                return animated_face
+            except Exception as e:
+                self.logger.error(f"❌ Fallback deformation also failed: {e}")
+                return self.base_face
             
         except Exception as e:
             self.logger.error(f"Error in generate_face_for_audio_chunk: {e}")
