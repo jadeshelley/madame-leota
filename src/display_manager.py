@@ -54,8 +54,61 @@ class DisplayManager:
         
         pygame.display.set_caption("Madame Leota")
         
+        # Force window to front and center it
+        try:
+            import os
+            if os.name == 'nt':  # Windows
+                try:
+                    import win32gui
+                    import win32con
+                    hwnd = pygame.display.get_wm_info()["window"]
+                    win32gui.SetForegroundWindow(hwnd)
+                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                    self.logger.info("✅ Windows: Window brought to front")
+                except ImportError:
+                    self.logger.warning("⚠️ win32gui not available, window may be behind other windows")
+                except Exception as e:
+                    self.logger.warning(f"⚠️ Could not force window to front: {e}")
+            else:  # Linux/Mac
+                # Try to bring window to front using xdotool (Linux)
+                try:
+                    import subprocess
+                    subprocess.run(["xdotool", "search", "--name", "Madame Leota", "windowactivate"], 
+                                 capture_output=True, timeout=2)
+                    self.logger.info("✅ Linux: Window brought to front")
+                except:
+                    self.logger.warning("⚠️ xdotool not available, window may be behind other windows")
+        except Exception as e:
+            self.logger.warning(f"⚠️ Could not force window to front: {e}")
+        
+        # Center the window on screen
+        try:
+            import os
+            if os.name == 'nt':  # Windows
+                try:
+                    import win32gui
+                    import win32api
+                    hwnd = pygame.display.get_wm_info()["window"]
+                    screen_width = win32api.GetSystemMetrics(0)
+                    screen_height = win32api.GetSystemMetrics(1)
+                    x = (screen_width - self.screen_width) // 2
+                    y = (screen_height - self.screen_height) // 2
+                    win32gui.SetWindowPos(hwnd, 0, x, y, 0, 0, 0x0001)
+                    self.logger.info(f"✅ Windows: Window centered at ({x}, {y})")
+                except ImportError:
+                    self.logger.warning("⚠️ win32gui not available, window may be off-center")
+                except Exception as e:
+                    self.logger.warning(f"⚠️ Could not center window: {e}")
+        except Exception as e:
+            self.logger.warning(f"⚠️ Could not center window: {e}")
+        
+        # Add helpful debug info
+        self.logger.info(f"🎭 DISPLAY: Window created - {self.screen_width}x{self.screen_height}, fullscreen={fullscreen}")
+        self.logger.info(f"🎭 DISPLAY: Look for 'Madame Leota' window - it may be behind other windows!")
+        self.logger.info(f"🎭 DISPLAY: Press Alt+Tab or check taskbar to find the window")
+        
         # Display properties
-        self.background_color = (0, 0, 0)  # Black background
+        self.background_color = (50, 0, 100)  # Purple background to make window more visible
         self.center_x = self.screen_width // 2
         self.center_y = self.screen_height // 2
         
