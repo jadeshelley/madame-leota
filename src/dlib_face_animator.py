@@ -218,15 +218,21 @@ class DlibFaceAnimator:
                 avg_freq = np.mean(recent_freqs)
                 amp_variance = np.var(recent_amps)
                 
-                # Phoneme classification for better mouth shapes - INCREASED SENSITIVITY
-                if avg_freq > 0.3 and amp_variance > 0.05:  # Lowered thresholds
+                print(f"🎭 PHONEME DEBUG: avg_amp={avg_amp:.4f}, avg_freq={avg_freq:.4f}, amp_variance={amp_variance:.4f}")
+                
+                # Phoneme classification - MUCH MORE SENSITIVE
+                if avg_freq > 0.1 and amp_variance > 0.01:  # Very low thresholds
                     phoneme_type = "vowel"  # Wide open mouth for vowels
-                elif avg_amp > 0.5:  # Lowered threshold
+                    print(f"🎭 PHONEME SELECTED: VOWEL (freq={avg_freq:.4f} > 0.1, var={amp_variance:.4f} > 0.01)")
+                elif avg_amp > 0.3:  # Very low threshold
                     phoneme_type = "consonant"  # Moderate opening for consonants
-                elif avg_freq < 0.1:  # Lowered threshold
+                    print(f"🎭 PHONEME SELECTED: CONSONANT (amp={avg_amp:.4f} > 0.3)")
+                elif avg_freq < 0.05:  # Very low threshold
                     phoneme_type = "closed"  # Nearly closed for quiet sounds
+                    print(f"🎭 PHONEME SELECTED: CLOSED (freq={avg_freq:.4f} < 0.05)")
                 else:
                     phoneme_type = "neutral"
+                    print(f"🎭 PHONEME SELECTED: NEUTRAL (default)")
             else:
                 phoneme_type = "neutral"
             
