@@ -139,6 +139,11 @@ class DisplayManager:
                 test_rect = pygame.Rect(10, 10, 50, 50)
                 pygame.draw.rect(self.screen, (255, 0, 0), test_rect)  # Bright red
                 self.logger.info(f"🎨 CLEAR DEBUG: Test pattern drawn - look for red square in top-left corner")
+                
+                # CRITICAL: Update the display to show the test pattern
+                pygame.display.flip()
+                self.logger.info(f"🎨 CLEAR DEBUG: Display flipped - red square should now be visible!")
+                
             except Exception as test_error:
                 self.logger.error(f"🎨 CLEAR DEBUG: Test pattern failed: {test_error}")
             
@@ -209,6 +214,10 @@ class DisplayManager:
             self.logger.info(f"🎨 DISPLAY DEBUG: Blitting surface to screen at position {position}")
             self.screen.blit(surface, position)
             self.logger.info(f"🎨 DISPLAY DEBUG: Blit completed successfully")
+            
+            # CRITICAL: Update the display to show the changes
+            pygame.display.flip()
+            self.logger.info(f"🎨 DISPLAY DEBUG: Display flipped - image should now be visible!")
             
         except Exception as e:
             self.logger.error(f"Error displaying image: {e}")
