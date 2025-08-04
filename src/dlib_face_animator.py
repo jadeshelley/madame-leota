@@ -200,31 +200,44 @@ class DlibFaceAnimator:
         try:
             print(f"🔍 ENHANCED AUDIO ANALYSIS: Called with {len(audio_array)} samples")
             
-            # Use frame number to create artificial variation for testing
-            frame_num = getattr(self, '_frame_counter', 0)
-            self._frame_counter = frame_num + 1
-            
             # Basic amplitude and frequency analysis
             amplitude = self._analyze_amplitude(audio_array)
             frequency = self._analyze_frequency(audio_array)
             
-            # Add artificial variation based on frame number for testing
-            # This will cycle through different phonemes every few frames
-            cycle_length = 10  # Change phoneme every 10 frames
-            cycle_position = frame_num % cycle_length
+            # Add to history for trend analysis
+            self.audio_history.append((amplitude, frequency))
+            if len(self.audio_history) > self.max_history:
+                self.audio_history.pop(0)
             
-            if cycle_position < 3:
-                phoneme_type = "vowel"
-                print(f"🎭 ARTIFICIAL CYCLE: VOWEL (frame {frame_num}, position {cycle_position})")
-            elif cycle_position < 6:
-                phoneme_type = "consonant" 
-                print(f"🎭 ARTIFICIAL CYCLE: CONSONANT (frame {frame_num}, position {cycle_position})")
-            elif cycle_position < 8:
-                phoneme_type = "closed"
-                print(f"🎭 ARTIFICIAL CYCLE: CLOSED (frame {frame_num}, position {cycle_position})")
+            # Analyze trends for better lip-sync
+            if len(self.audio_history) >= 3:
+                recent_amps = [a for a, f in self.audio_history[-3:]]
+                recent_freqs = [f for a, f in self.audio_history[-3:]]
+                
+                # Detect phoneme types based on audio patterns
+                avg_amp = np.mean(recent_amps)
+                avg_freq = np.mean(recent_freqs)
+                amp_variance = np.var(recent_amps)
+                freq_variance = np.var(recent_freqs)
+                
+                print(f"🎭 REAL AUDIO DEBUG: avg_amp={avg_amp:.4f}, avg_freq={avg_freq:.4f}, amp_var={amp_variance:.4f}, freq_var={freq_variance:.4f}")
+                
+                # MUCH MORE SENSITIVE phoneme classification
+                if avg_amp > 0.8 and avg_freq > 0.01:  # High amplitude + some frequency
+                    phoneme_type = "vowel"
+                    print(f"🎭 REAL AUDIO: VOWEL (amp={avg_amp:.4f} > 0.8, freq={avg_freq:.4f} > 0.01)")
+                elif avg_amp > 0.6:  # Moderate amplitude
+                    phoneme_type = "consonant"
+                    print(f"🎭 REAL AUDIO: CONSONANT (amp={avg_amp:.4f} > 0.6)")
+                elif avg_amp < 0.3:  # Low amplitude
+                    phoneme_type = "closed"
+                    print(f"🎭 REAL AUDIO: CLOSED (amp={avg_amp:.4f} < 0.3)")
+                else:
+                    phoneme_type = "neutral"
+                    print(f"🎭 REAL AUDIO: NEUTRAL (amp={avg_amp:.4f})")
             else:
                 phoneme_type = "neutral"
-                print(f"🎭 ARTIFICIAL CYCLE: NEUTRAL (frame {frame_num}, position {cycle_position})")
+                print(f"🎭 REAL AUDIO: NEUTRAL (insufficient history)")
             
             return amplitude, frequency, phoneme_type
             
