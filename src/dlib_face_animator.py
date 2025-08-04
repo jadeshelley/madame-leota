@@ -130,10 +130,28 @@ class DlibFaceAnimator:
             # Enhanced audio analysis
             amplitude, frequency, phoneme_type = self._enhanced_audio_analysis(audio_array)
             
-            # Apply mouth deformation with new seamless approach
-            animated_face = self._apply_seamless_mouth_deformation(amplitude, frequency, phoneme_type)
+            # Debug logging
+            self.logger.info(f"🎭 dlib: amp={amplitude:.3f}, freq={frequency:.3f}, phoneme={phoneme_type}")
             
-            return animated_face
+            # Try new seamless approach first
+            try:
+                animated_face = self._apply_seamless_mouth_deformation(amplitude, frequency, phoneme_type)
+                if animated_face is not None and animated_face.shape == self.base_face.shape:
+                    self.logger.debug("✅ Seamless deformation successful")
+                    return animated_face
+                else:
+                    self.logger.warning("⚠️ Seamless deformation failed, trying fallback")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Seamless deformation error: {e}, trying fallback")
+            
+            # Fallback to simple deformation if seamless fails
+            try:
+                self.logger.info("🔄 Using fallback mouth deformation")
+                animated_face = self._fallback_simple_deformation(amplitude, frequency)
+                return animated_face
+            except Exception as e:
+                self.logger.error(f"❌ Fallback deformation also failed: {e}")
+                return self.base_face
             
         except Exception as e:
             self.logger.error(f"Error generating face from audio: {e}")
@@ -421,3 +439,83 @@ class DlibFaceAnimator:
         except Exception as e:
             self.logger.error(f"Error analyzing frequency: {e}")
             return 0.5 
+
+    def _fallback_simple_deformation(self, amplitude: float, frequency: float) -> np.ndarray:
+        """Simple fallback deformation that we know works"""
+        try:
+            # Create a copy of original mouth landmarks
+            new_mouth_points = self.original_mouth_points.copy().astype(np.float32)
+            
+            # Calculate mouth center
+            mouth_center = np.mean(new_mouth_points, axis=0)
+            
+            # Apply simple deformations based on audio
+            
+            # 1. Jaw drop (move bottom lip down)
+            jaw_drop = amplitude * 60  # Dramatic movement
+            bottom_lip_indices = [60, 61, 62, 63, 64, 65, 66, 67]  # Bottom lip in mouth landmarks
+            for i in bottom_lip_indices:
+                if i < len(new_mouth_points):
+                    new_mouth_points[i][1] += jaw_drop
+            
+            # 2. Lip width (squeeze/stretch horizontally)
+            width_factor = 0.7 + (frequency * 0.8)  # 0.7 to 1.5 range
+            for i, point in enumerate(new_mouth_points):
+                # Move points horizontally relative to center
+                dx = (point[0] - mouth_center[0]) * (width_factor - 1.0)
+                new_mouth_points[i][0] += dx
+            
+            # 3. Lip height (vertical scaling)
+            height_factor = 0.8 + (amplitude * 0.6)  # 0.8 to 1.4 range
+            for i, point in enumerate(new_mouth_points):
+                # Move points vertically relative to center
+                dy = (point[1] - mouth_center[1]) * (height_factor - 1.0)
+                new_mouth_points[i][1] += dy
+            
+            # Apply simple scaling transformation
+            result_face = self._simple_mouth_warp(self.base_face.copy(), self.original_mouth_points, new_mouth_points)
+            
+            return result_face
+            
+        except Exception as e:
+            self.logger.error(f"Error in fallback deformation: {e}")
+            return self.base_face
+    
+    def _simple_mouth_warp(self, face: np.ndarray, src_points: np.ndarray, dst_points: np.ndarray) -> np.ndarray:
+        """Simple mouth warping that we know works"""
+        try:
+            result = face.copy()
+            
+            # Calculate center and scale
+            src_center = np.mean(src_points, axis=0)
+            dst_center = np.mean(dst_points, axis=0)
+            
+            # Calculate scale factors
+            src_scale = np.mean(np.linalg.norm(src_points - src_center, axis=1))
+            dst_scale = np.mean(np.linalg.norm(dst_points - dst_center, axis=1))
+            
+            if src_scale > 0:
+                scale_factor = dst_scale / src_scale
+                scale_factor = np.clip(scale_factor, 0.6, 1.8)
+                
+                # Apply scaling around mouth center
+                h, w = face.shape[:2]
+                center = (int(src_center[0]), int(src_center[1]))
+                
+                # Create scaling matrix
+                M = cv2.getRotationMatrix2D(center, 0, scale_factor)
+                
+                # Apply transformation
+                warped = cv2.warpAffine(face, M, (w, h), 
+                                       flags=cv2.INTER_LINEAR, 
+                                       borderMode=cv2.BORDER_REFLECT)
+                
+                # Blend with original
+                alpha = 0.8
+                result = cv2.addWeighted(face, 1-alpha, warped, alpha, 0)
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error in simple mouth warp: {e}")
+            return face 
