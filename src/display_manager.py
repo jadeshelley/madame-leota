@@ -129,7 +129,18 @@ class DisplayManager:
                 self.logger.error("No screen surface available for clearing")
                 return
             
+            self.logger.info(f"🎨 CLEAR DEBUG: Clearing screen with color {self.background_color}")
             self.screen.fill(self.background_color)
+            self.logger.info(f"🎨 CLEAR DEBUG: Screen cleared successfully")
+            
+            # Add a simple test pattern to verify the screen is working
+            try:
+                # Draw a bright red rectangle in the corner to test if drawing works
+                test_rect = pygame.Rect(10, 10, 50, 50)
+                pygame.draw.rect(self.screen, (255, 0, 0), test_rect)  # Bright red
+                self.logger.info(f"🎨 CLEAR DEBUG: Test pattern drawn - look for red square in top-left corner")
+            except Exception as test_error:
+                self.logger.error(f"🎨 CLEAR DEBUG: Test pattern failed: {test_error}")
             
         except Exception as e:
             self.logger.error(f"Error clearing screen: {e}")
@@ -147,13 +158,18 @@ class DisplayManager:
                 self.logger.warning("Invalid image provided to display_image")
                 return
             
+            # Debug logging
+            self.logger.info(f"🎨 DISPLAY DEBUG: Image shape: {image.shape}, dtype: {image.dtype}, position: {position}")
+            
             # Ensure image is in correct format for pygame
             if len(image.shape) == 3:
                 # Convert BGR to RGB if needed and ensure uint8
                 if image.shape[2] == 3:
                     image_rgb = cv2.cvtColor(image.astype(np.uint8), cv2.COLOR_BGR2RGB)
+                    self.logger.info(f"🎨 DISPLAY DEBUG: Converted BGR to RGB, new shape: {image_rgb.shape}")
                 else:
                     image_rgb = image.astype(np.uint8)
+                    self.logger.info(f"🎨 DISPLAY DEBUG: Already RGB, shape: {image_rgb.shape}")
             else:
                 self.logger.error(f"Unsupported image shape: {image.shape}")
                 return
@@ -166,10 +182,13 @@ class DisplayManager:
             # Ensure image is contiguous in memory for pygame
             if not image_rgb.flags['C_CONTIGUOUS']:
                 image_rgb = np.ascontiguousarray(image_rgb)
+                self.logger.info(f"🎨 DISPLAY DEBUG: Made image contiguous")
             
             # Create pygame surface with error handling
             try:
+                self.logger.info(f"🎨 DISPLAY DEBUG: Creating pygame surface from shape {image_rgb.shape}")
                 surface = pygame.surfarray.make_surface(image_rgb.swapaxes(0, 1))
+                self.logger.info(f"🎨 DISPLAY DEBUG: Surface created successfully, size: {surface.get_size()}")
             except (ValueError, TypeError) as surf_error:
                 self.logger.error(f"Surface creation failed: {surf_error}, image shape: {image_rgb.shape}, dtype: {image_rgb.dtype}")
                 # Try alternative method
@@ -181,12 +200,15 @@ class DisplayManager:
                     size = pil_image.size
                     raw_data = pil_image.tobytes()
                     surface = pygame.image.fromstring(raw_data, size, mode)
+                    self.logger.info(f"🎨 DISPLAY DEBUG: PIL fallback surface created, size: {surface.get_size()}")
                 except Exception as pil_error:
                     self.logger.error(f"PIL fallback failed: {pil_error}")
                     return
             
             # Blit to screen
+            self.logger.info(f"🎨 DISPLAY DEBUG: Blitting surface to screen at position {position}")
             self.screen.blit(surface, position)
+            self.logger.info(f"🎨 DISPLAY DEBUG: Blit completed successfully")
             
         except Exception as e:
             self.logger.error(f"Error displaying image: {e}")
