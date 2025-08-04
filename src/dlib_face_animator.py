@@ -344,7 +344,21 @@ class DlibFaceAnimator:
             
             print(f"🎭 WARPING: Applied warping, result shape: {result.shape}")
             
-            return result
+            # TEMPORARY DEBUG: Add a colored overlay to show the deformed mouth area
+            # This will help us see if the deformation is actually happening
+            debug_result = result.copy()
+            mouth_contour = new_mouth_points.astype(np.int32)
+            cv2.fillPoly(debug_result, [mouth_contour], (0, 255, 0))  # Green overlay
+            cv2.polylines(debug_result, [mouth_contour], True, (255, 0, 0), 2)  # Blue border
+            
+            # Add text label
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            text_pos = (int(mouth_center[0] - 50), int(mouth_center[1] - 50))
+            cv2.putText(debug_result, f"{phoneme_type.upper()}", text_pos, font, 1.0, (255, 255, 255), 2)
+            
+            print(f"🎭 DEBUG OVERLAY: Added green mouth area and {phoneme_type} label")
+            
+            return debug_result
             
         except Exception as e:
             self.logger.error(f"Error in seamless mouth deformation: {e}")
@@ -531,17 +545,23 @@ class DlibFaceAnimator:
                     drop_factor = 1.0 - distance_from_center * 0.5  # Less drop at corners
                     new_points[i][1] += jaw_drop * drop_factor
             
-            # Apply width stretching
+            # Apply width stretching - FIXED LOGIC
             for i, point in enumerate(new_points):
-                # Stretch horizontally from center
-                dx = (point[0] - center[0]) * (width_stretch - 1.0)
+                # Stretch horizontally from center - MORE AGGRESSIVE
+                dx = (point[0] - center[0]) * (width_stretch - 1.0) * 2.0  # Double the effect
                 new_points[i][0] += dx
             
-            # Apply height stretching
+            # Apply height stretching - FIXED LOGIC  
             for i, point in enumerate(new_points):
-                # Stretch vertically from center
-                dy = (point[1] - center[1]) * (height_stretch - 1.0)
+                # Stretch vertically from center - MORE AGGRESSIVE
+                dy = (point[1] - center[1]) * (height_stretch - 1.0) * 2.0  # Double the effect
                 new_points[i][1] += dy
+            
+            # Apply EXTRA jaw drop to lower lip points - FORCE VISIBLE MOVEMENT
+            for i in lower_lip_indices:
+                if i < len(new_points):
+                    # Force dramatic jaw drop regardless of distance
+                    new_points[i][1] += jaw_drop * 0.8  # 80% of jaw drop directly applied
             
             # Debug: Check if points actually changed
             original_center = np.mean(points, axis=0)
