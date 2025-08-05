@@ -73,7 +73,37 @@ class FaceAnimator:
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize simple morph animator first (guaranteed to work on Pi)
+        # Try to initialize smart mouth animator first (actually responds to audio)
+        try:
+            print("🎭 DEBUG: Attempting to import smart mouth animator...")
+            from src.smart_mouth_animator import SmartMouthAnimator
+            self.smart_mouth_animator = SmartMouthAnimator()
+            print("✅ SMART MOUTH: Smart mouth animation system initialized")
+            self.logger.info("✅ Smart mouth animation system initialized")
+            
+            # Load mouth shapes for smart mouth system
+            try:
+                faces_dir = FACE_ASSETS_DIR
+                print(f"🎭 SMART MOUTH: Loading mouth shapes from {faces_dir}")
+                success = self.smart_mouth_animator.load_mouth_shapes(faces_dir)
+                if success:
+                    print("✅ SMART MOUTH: Mouth shapes loaded successfully")
+                    self.logger.info("✅ Smart mouth shapes loaded successfully")
+                else:
+                    print("❌ SMART MOUTH: Failed to load mouth shapes")
+                    self.logger.error("❌ Smart mouth failed to load mouth shapes")
+                    self.smart_mouth_animator = None
+            except Exception as e:
+                print(f"❌ SMART MOUTH: Error loading mouth shapes: {e}")
+                self.logger.error(f"❌ Smart mouth error loading mouth shapes: {e}")
+                self.smart_mouth_animator = None
+                
+        except Exception as e:
+            print(f"❌ SMART MOUTH: Failed to initialize: {e}")
+            self.logger.warning(f"Smart mouth initialization failed: {e}")
+            self.smart_mouth_animator = None
+        
+        # Try to initialize simple morph animator second (guaranteed to work on Pi)
         try:
             print("🎭 DEBUG: Attempting to import simple morph animator...")
             from src.simple_morph_animator import SimpleMorphAnimator
@@ -1077,14 +1107,21 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try simple morph animator first (guaranteed to work on Pi)
-            if hasattr(self, 'simple_morph_animator') and self.simple_morph_animator:
+            # Try smart mouth animator first (actually responds to audio)
+            if hasattr(self, 'smart_mouth_animator') and self.smart_mouth_animator:
+                print(f"🎭 SMART MOUTH: Using smart mouth animation")
+                face = self.smart_mouth_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"🎭 SMART MOUTH: Generated face with shape: {face.shape}")
+                return face
+            
+            # Try simple morph animator second (guaranteed to work on Pi)
+            elif hasattr(self, 'simple_morph_animator') and self.simple_morph_animator:
                 print(f"🎭 SIMPLE MORPH: Using simple morphing animation")
                 face = self.simple_morph_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 SIMPLE MORPH: Generated face with shape: {face.shape}")
                 return face
             
-            # Try OpenCV face animator second (proven solution for Pi)
+            # Try OpenCV face animator third (proven solution for Pi)
             elif hasattr(self, 'opencv_animator') and self.opencv_animator:
                 print(f"🎭 OPENCV: Using OpenCV face animation")
                 face = self.opencv_animator.generate_face_for_audio_chunk(audio_chunk)
