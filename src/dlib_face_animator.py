@@ -221,117 +221,20 @@ class DlibFaceAnimator:
             if len(self.audio_history) > self.max_history:
                 self.audio_history.pop(0)
             
-            # Analyze trends for better lip-sync - use more recent history for better responsiveness
-            if len(self.audio_history) >= 2:  # Reduced from 3 to 2 for faster response
-                recent_amps = [a for a, f in self.audio_history[-2:]]  # Use last 2 instead of 3
-                recent_freqs = [f for a, f in self.audio_history[-2:]]
-                
-                # Detect phoneme types based on audio patterns
-                avg_amp = np.mean(recent_amps)
-                avg_freq = np.mean(recent_freqs)
-                amp_variance = np.var(recent_amps)
-                freq_variance = np.var(recent_freqs)
-                
-                # Also analyze the current frame's amplitude vs the previous frame
-                if len(self.audio_history) >= 2:
-                    current_amp = amplitude
-                    previous_amp = self.audio_history[-2][0]  # Previous frame's amplitude
-                    amp_change = abs(current_amp - previous_amp)  # How much amplitude changed
-                    print(f"🎭 AMPLITUDE CHANGE: current={current_amp:.4f}, previous={previous_amp:.4f}, change={amp_change:.4f}")
-                else:
-                    amp_change = 0.0
-                
-                print(f"🎭 REAL AUDIO DEBUG: avg_amp={avg_amp:.4f}, avg_freq={avg_freq:.4f}, amp_var={amp_variance:.4f}, freq_var={freq_variance:.4f}")
-                
-                # ULTRA SENSITIVE phoneme classification - much lower thresholds
-                if avg_amp > 0.95:  # Very high amplitude
-                    phoneme_type = "vowel"
-                    print(f"🎭 REAL AUDIO: VOWEL (amp={avg_amp:.4f} > 0.95)")
-                elif avg_amp > 0.85:  # High amplitude
-                    phoneme_type = "consonant"
-                    print(f"🎭 REAL AUDIO: CONSONANT (amp={avg_amp:.4f} > 0.85)")
-                elif avg_amp < 0.7:  # Lower amplitude
-                    phoneme_type = "closed"
-                    print(f"🎭 REAL AUDIO: CLOSED (amp={avg_amp:.4f} < 0.7)")
-                else:
-                    phoneme_type = "neutral"
-                    print(f"🎭 REAL AUDIO: NEUTRAL (amp={avg_amp:.4f})")
-                
-                # DYNAMIC PHONEME DETECTION - respond to changes in audio, not just absolute values
-                # This prevents getting stuck on the same phoneme
-                
-                # Calculate how much the audio has changed recently
-                if len(self.audio_history) >= 3:
-                    recent_changes = []
-                    for i in range(1, len(self.audio_history)):
-                        change = abs(self.audio_history[i][0] - self.audio_history[i-1][0])
-                        recent_changes.append(change)
-                    
-                    avg_change = np.mean(recent_changes)
-                    max_change = np.max(recent_changes)
-                    print(f"🎭 AUDIO CHANGE ANALYSIS: avg_change={avg_change:.4f}, max_change={max_change:.4f}")
-                    
-                    # Use change-based phoneme detection
-                    if max_change > 0.01:  # Significant change detected
-                        if avg_amp > 0.9:
-                            phoneme_type = "vowel"
-                            print(f"🎭 CHANGE-BASED: VOWEL (change={max_change:.4f} > 0.01, amp={avg_amp:.4f})")
-                        elif avg_amp > 0.7:
-                            phoneme_type = "consonant"
-                            print(f"🎭 CHANGE-BASED: CONSONANT (change={max_change:.4f} > 0.01, amp={avg_amp:.4f})")
-                        else:
-                            phoneme_type = "closed"
-                            print(f"🎭 CHANGE-BASED: CLOSED (change={max_change:.4f} > 0.01, amp={avg_amp:.4f})")
-                    else:  # No significant change, use amplitude-based
-                        if avg_amp > 0.8:
-                            phoneme_type = "vowel"
-                            print(f"🎭 AMPLITUDE-BASED: VOWEL (amp={avg_amp:.4f} > 0.8)")
-                        elif avg_amp > 0.4:
-                            phoneme_type = "consonant"
-                            print(f"🎭 AMPLITUDE-BASED: CONSONANT (amp={avg_amp:.4f} > 0.4)")
-                        elif avg_amp < 0.2:
-                            phoneme_type = "closed"
-                            print(f"🎭 AMPLITUDE-BASED: CLOSED (amp={avg_amp:.4f} < 0.2)")
-                        else:
-                            phoneme_type = "neutral"
-                            print(f"🎭 AMPLITUDE-BASED: NEUTRAL (amp={avg_amp:.4f})")
-                else:
-                    # Fallback to simple amplitude-based detection
-                    if avg_amp > 0.8:
-                        phoneme_type = "vowel"
-                        print(f"🎭 FALLBACK: VOWEL (amp={avg_amp:.4f} > 0.8)")
-                    elif avg_amp > 0.4:
-                        phoneme_type = "consonant"
-                        print(f"🎭 FALLBACK: CONSONANT (amp={avg_amp:.4f} > 0.4)")
-                    elif avg_amp < 0.2:
-                        phoneme_type = "closed"
-                        print(f"🎭 FALLBACK: CLOSED (amp={avg_amp:.4f} < 0.2)")
-                    else:
-                        phoneme_type = "neutral"
-                        print(f"🎭 FALLBACK: NEUTRAL (amp={avg_amp:.4f})")
-                
-
-                
-                # CRITICAL DEBUG: Log the final phoneme type that will be used
-                print(f"🎭 FINAL PHONEME SELECTED: {phoneme_type.upper()} for frame {frame_num}")
-            else:
-                phoneme_type = "neutral"
-                print(f"🎭 REAL AUDIO: NEUTRAL (insufficient history)")
-            
-            # REAL AUDIO-DRIVEN LIP SYNC - Make mouth respond to actual audio content
-            # Analyze the current audio chunk to determine mouth shape
+            # REAL AUDIO-DRIVEN LIP SYNC - Analyze the current audio chunk directly
+            # This replaces the old history-based system with direct audio analysis
             
             # Calculate audio intensity for this specific chunk
-            if len(audio_chunk) > 0:
+            if len(audio_array) > 0:
                 # Get RMS (Root Mean Square) - measures audio intensity
-                rms = np.sqrt(np.mean(audio_chunk**2))
+                rms = np.sqrt(np.mean(audio_array**2))
                 
                 # Get peak amplitude
-                peak = np.max(np.abs(audio_chunk))
+                peak = np.max(np.abs(audio_array))
                 
                 # Get zero-crossing rate (indicates frequency content)
-                zero_crossings = np.sum(np.diff(np.sign(audio_chunk)) != 0)
-                zcr = zero_crossings / len(audio_chunk) if len(audio_chunk) > 0 else 0
+                zero_crossings = np.sum(np.diff(np.sign(audio_array)) != 0)
+                zcr = zero_crossings / len(audio_array) if len(audio_array) > 0 else 0
                 
                 # Normalize values
                 rms_norm = min(1.0, rms * 10)  # Scale RMS to 0-1 range
@@ -360,6 +263,11 @@ class DlibFaceAnimator:
                 # Fallback if no audio data
                 phoneme_type = "neutral"
                 print(f"🎭 AUDIO-DRIVEN: NEUTRAL (no audio data)")
+            
+            # CRITICAL DEBUG: Log the final phoneme type that will be used
+            print(f"🎭 FINAL PHONEME SELECTED: {phoneme_type.upper()} for frame {frame_num}")
+            
+            # Audio analysis is now done above - this was duplicate code
             
             # FINAL DEBUG: Always log what we're returning
             print(f"🎭 RETURNING PHONEME: {phoneme_type.upper()} for frame {frame_num}")
