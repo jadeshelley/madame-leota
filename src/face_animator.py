@@ -73,7 +73,19 @@ class FaceAnimator:
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize Wav2Lip AI first (highest quality)
+        # Try to initialize SadTalker first (highest quality)
+        try:
+            print("🎭 DEBUG: Attempting to import SadTalker animator...")
+            from src.sadtalker_animator import SadTalkerAnimator
+            self.sadtalker_animator = SadTalkerAnimator()
+            print("✅ SADTALKER: AI talking face system initialized")
+            self.logger.info("✅ SadTalker AI system initialized")
+        except Exception as e:
+            print(f"❌ SADTALKER: Failed to initialize: {e}")
+            self.logger.warning(f"SadTalker initialization failed: {e}")
+            self.sadtalker_animator = None
+        
+        # Try to initialize Wav2Lip AI second (high quality)
         if USE_WAV2LIP and WAV2LIP_AVAILABLE:
             try:
                 print("🤖 DEBUG: Attempting to initialize Wav2Lip AI...")
@@ -895,8 +907,15 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try clean dlib animator first (Local, reliable solution)
-            if hasattr(self, 'clean_dlib_animator') and self.clean_dlib_animator:
+            # Try SadTalker first (highest quality AI talking face)
+            if hasattr(self, 'sadtalker_animator') and self.sadtalker_animator:
+                print(f"🎭 SADTALKER: Using AI talking face animation")
+                face = self.sadtalker_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"🎭 SADTALKER: Generated face with shape: {face.shape}")
+                return face
+            
+            # Try clean dlib animator second (Local, reliable solution)
+            elif hasattr(self, 'clean_dlib_animator') and self.clean_dlib_animator:
                 print(f"✅ CLEAN DLIB: Using clean dlib animation")
                 face = self.clean_dlib_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"✅ CLEAN DLIB: Generated face with shape: {face.shape}")
