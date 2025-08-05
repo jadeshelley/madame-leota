@@ -73,7 +73,42 @@ class FaceAnimator:
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize OpenCV face animator first (proven solution for Pi)
+        # Try to initialize simple morph animator first (guaranteed to work on Pi)
+        try:
+            print("🎭 DEBUG: Attempting to import simple morph animator...")
+            from src.simple_morph_animator import SimpleMorphAnimator
+            self.simple_morph_animator = SimpleMorphAnimator()
+            print("✅ SIMPLE MORPH: Simple morphing animation system initialized")
+            self.logger.info("✅ Simple morphing animation system initialized")
+            
+            # Load base face for simple morph system
+            try:
+                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+                if base_face_path.exists():
+                    print(f"🎭 SIMPLE MORPH: Loading base face from {base_face_path}")
+                    success = self.simple_morph_animator.load_base_face(str(base_face_path))
+                    if success:
+                        print("✅ SIMPLE MORPH: Base face loaded successfully")
+                        self.logger.info("✅ Simple morph base face loaded successfully")
+                    else:
+                        print("❌ SIMPLE MORPH: Failed to load base face")
+                        self.logger.error("❌ Simple morph failed to load base face")
+                        self.simple_morph_animator = None
+                else:
+                    print(f"❌ SIMPLE MORPH: Base face not found at {base_face_path}")
+                    self.logger.error(f"❌ Simple morph base face not found at {base_face_path}")
+                    self.simple_morph_animator = None
+            except Exception as e:
+                print(f"❌ SIMPLE MORPH: Error loading base face: {e}")
+                self.logger.error(f"❌ Simple morph error loading base face: {e}")
+                self.simple_morph_animator = None
+                
+        except Exception as e:
+            print(f"❌ SIMPLE MORPH: Failed to initialize: {e}")
+            self.logger.warning(f"Simple morph initialization failed: {e}")
+            self.simple_morph_animator = None
+        
+        # Try to initialize OpenCV face animator second (proven solution for Pi)
         try:
             print("🎭 DEBUG: Attempting to import OpenCV face animator...")
             from src.opencv_face_animator import OpenCVFaceAnimator
@@ -1047,21 +1082,28 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try OpenCV face animator first (proven solution for Pi)
-            if hasattr(self, 'opencv_animator') and self.opencv_animator:
+            # Try simple morph animator first (guaranteed to work on Pi)
+            if hasattr(self, 'simple_morph_animator') and self.simple_morph_animator:
+                print(f"🎭 SIMPLE MORPH: Using simple morphing animation")
+                face = self.simple_morph_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"🎭 SIMPLE MORPH: Generated face with shape: {face.shape}")
+                return face
+            
+            # Try OpenCV face animator second (proven solution for Pi)
+            elif hasattr(self, 'opencv_animator') and self.opencv_animator:
                 print(f"🎭 OPENCV: Using OpenCV face animation")
                 face = self.opencv_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 OPENCV: Generated face with shape: {face.shape}")
                 return face
             
-            # Try simple realistic face animator second (actually manipulates real face features, no complex dependencies)
+            # Try simple realistic face animator third (actually manipulates real face features, no complex dependencies)
             elif hasattr(self, 'simple_realistic_animator') and self.simple_realistic_animator:
                 print(f"🎭 SIMPLE REALISTIC: Using simple realistic face animation")
                 face = self.simple_realistic_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 SIMPLE REALISTIC: Generated face with shape: {face.shape}")
                 return face
             
-            # Try realistic face animator third (actually manipulates real face features)
+            # Try realistic face animator fourth (actually manipulates real face features)
             elif hasattr(self, 'realistic_animator') and self.realistic_animator:
                 print(f"🎭 REALISTIC: Using realistic face animation")
                 face = self.realistic_animator.generate_face_for_audio_chunk(audio_chunk)
