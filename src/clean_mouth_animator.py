@@ -195,4 +195,12 @@ class CleanMouthAnimator:
             return audio_array
         except Exception as e:
             print(f"❌ CLEAN MOUTH: Error converting audio: {e}")
-            return np.array([], dtype=np.float32) 
+            return np.array([], dtype=np.float32)
+    
+    def cleanup(self):
+        """Cleanup resources"""
+        try:
+            self.mouth_shapes.clear()
+            print("🎭 CLEAN MOUTH: Cleaned up successfully")
+        except Exception as e:
+            print(f"❌ CLEAN MOUTH: Error during cleanup: {e}") 

@@ -205,22 +205,20 @@ class MadameLeotaApp:
             
             print("🎭 SPEAK DEBUG: About to check animation system...")
             # Check what animation system is available - DEBUG LOGGING
-            has_audio_driven = hasattr(self.face_animator, 'animate_speaking_with_audio') and self.face_animator.audio_driven_face
+            has_clean_mouth = hasattr(self.face_animator, 'clean_mouth_animator') and self.face_animator.clean_mouth_animator is not None
             
             self.logger.info(f"🔍 DEBUG - Animation System Check:")
             self.logger.info(f"  - hasattr animate_speaking_with_audio: {hasattr(self.face_animator, 'animate_speaking_with_audio')}")
-            self.logger.info(f"  - audio_driven_face object: {self.face_animator.audio_driven_face}")
-            self.logger.info(f"  - has_audio_driven (combined): {has_audio_driven}")
+            self.logger.info(f"  - clean_mouth_animator object: {self.face_animator.clean_mouth_animator}")
+            self.logger.info(f"  - has_clean_mouth (combined): {has_clean_mouth}")
             
-            if hasattr(self.face_animator, 'audio_driven_face') and self.face_animator.audio_driven_face:
-                self.logger.info(f"  - base_face loaded: {self.face_animator.audio_driven_face.base_face is not None}")
-                if self.face_animator.audio_driven_face.base_face is not None:
-                    self.logger.info(f"  - base_face shape: {self.face_animator.audio_driven_face.base_face.shape}")
+            if hasattr(self.face_animator, 'clean_mouth_animator') and self.face_animator.clean_mouth_animator:
+                self.logger.info(f"  - mouth shapes loaded: {len(self.face_animator.clean_mouth_animator.mouth_shapes)}")
             
-            # Start deepfake-like speaking animation with audio analysis
-            if has_audio_driven:
-                # Use audio-driven deepfake-like animation (most realistic)
-                self.logger.info("🎭 Using audio-driven deepfake animation")
+            # Start clean mouth speaking animation with audio analysis
+            if has_clean_mouth:
+                # Use clean mouth animation (simple and effective)
+                self.logger.info("🎭 Using clean mouth animation")
                 animation_task = asyncio.create_task(
                     self.face_animator.animate_speaking_with_audio(audio_data, phonemes)
                 )
