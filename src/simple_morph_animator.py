@@ -41,6 +41,37 @@ class SimpleMorphAnimator:
             print(f"❌ SIMPLE MORPH: Error loading face: {e}")
             return False
     
+    def load_mouth_shapes(self, faces_dir: str) -> bool:
+        """Load individual mouth shape images for morphing"""
+        try:
+            from pathlib import Path
+            faces_path = Path(faces_dir)
+            
+            # Load closed mouth image
+            closed_path = faces_path / "mouth_closed.png"
+            if closed_path.exists():
+                self.mouth_closed = cv2.imread(str(closed_path))
+                print(f"✅ SIMPLE MORPH: Loaded closed mouth from {closed_path}")
+            else:
+                print(f"❌ SIMPLE MORPH: Closed mouth not found at {closed_path}")
+                return False
+            
+            # Load open mouth image
+            open_path = faces_path / "mouth_open.png"
+            if open_path.exists():
+                self.mouth_open = cv2.imread(str(open_path))
+                print(f"✅ SIMPLE MORPH: Loaded open mouth from {open_path}")
+            else:
+                print(f"❌ SIMPLE MORPH: Open mouth not found at {open_path}")
+                # Fallback to creating open mouth from closed
+                self.mouth_open = self._create_open_mouth_version()
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ SIMPLE MORPH: Error loading mouth shapes: {e}")
+            return False
+    
     def _create_open_mouth_version(self):
         """Create an open mouth version of the base image"""
         if self.mouth_closed is None:

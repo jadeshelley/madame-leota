@@ -81,26 +81,21 @@ class FaceAnimator:
             print("✅ SIMPLE MORPH: Simple morphing animation system initialized")
             self.logger.info("✅ Simple morphing animation system initialized")
             
-            # Load base face for simple morph system
+            # Load mouth shapes for simple morph system
             try:
-                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
-                if base_face_path.exists():
-                    print(f"🎭 SIMPLE MORPH: Loading base face from {base_face_path}")
-                    success = self.simple_morph_animator.load_base_face(str(base_face_path))
-                    if success:
-                        print("✅ SIMPLE MORPH: Base face loaded successfully")
-                        self.logger.info("✅ Simple morph base face loaded successfully")
-                    else:
-                        print("❌ SIMPLE MORPH: Failed to load base face")
-                        self.logger.error("❌ Simple morph failed to load base face")
-                        self.simple_morph_animator = None
+                faces_dir = FACE_ASSETS_DIR
+                print(f"🎭 SIMPLE MORPH: Loading mouth shapes from {faces_dir}")
+                success = self.simple_morph_animator.load_mouth_shapes(faces_dir)
+                if success:
+                    print("✅ SIMPLE MORPH: Mouth shapes loaded successfully")
+                    self.logger.info("✅ Simple morph mouth shapes loaded successfully")
                 else:
-                    print(f"❌ SIMPLE MORPH: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ Simple morph base face not found at {base_face_path}")
+                    print("❌ SIMPLE MORPH: Failed to load mouth shapes")
+                    self.logger.error("❌ Simple morph failed to load mouth shapes")
                     self.simple_morph_animator = None
             except Exception as e:
-                print(f"❌ SIMPLE MORPH: Error loading base face: {e}")
-                self.logger.error(f"❌ Simple morph error loading base face: {e}")
+                print(f"❌ SIMPLE MORPH: Error loading mouth shapes: {e}")
+                self.logger.error(f"❌ Simple morph error loading mouth shapes: {e}")
                 self.simple_morph_animator = None
                 
         except Exception as e:
@@ -938,7 +933,7 @@ class FaceAnimator:
             if not self.audio_driven_face:
                 await self.animate_speaking(phonemes)
                 return
-                
+            
             self.is_speaking = True
             self.current_state = "speaking"
             
@@ -1426,7 +1421,7 @@ class FaceAnimator:
             return face_image
     
 
-
+    
     def cleanup(self):
         """Cleanup animator resources"""
         try:
