@@ -73,7 +73,42 @@ class FaceAnimator:
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize realistic face animator first (actually manipulates real face features)
+        # Try to initialize simple realistic face animator first (actually manipulates real face features, no complex dependencies)
+        try:
+            print("🎭 DEBUG: Attempting to import simple realistic face animator...")
+            from src.simple_realistic_animator import SimpleRealisticAnimator
+            self.simple_realistic_animator = SimpleRealisticAnimator()
+            print("✅ SIMPLE REALISTIC: Simple realistic face animation system initialized")
+            self.logger.info("✅ Simple realistic face animation system initialized")
+            
+            # Load base face for simple realistic system
+            try:
+                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+                if base_face_path.exists():
+                    print(f"🎭 SIMPLE REALISTIC: Loading base face from {base_face_path}")
+                    success = self.simple_realistic_animator.load_base_face(str(base_face_path))
+                    if success:
+                        print("✅ SIMPLE REALISTIC: Base face loaded successfully")
+                        self.logger.info("✅ Simple realistic base face loaded successfully")
+                    else:
+                        print("❌ SIMPLE REALISTIC: Failed to load base face")
+                        self.logger.error("❌ Simple realistic failed to load base face")
+                        self.simple_realistic_animator = None
+                else:
+                    print(f"❌ SIMPLE REALISTIC: Base face not found at {base_face_path}")
+                    self.logger.error(f"❌ Simple realistic base face not found at {base_face_path}")
+                    self.simple_realistic_animator = None
+            except Exception as e:
+                print(f"❌ SIMPLE REALISTIC: Error loading base face: {e}")
+                self.logger.error(f"❌ Simple realistic error loading base face: {e}")
+                self.simple_realistic_animator = None
+                
+        except Exception as e:
+            print(f"❌ SIMPLE REALISTIC: Failed to initialize: {e}")
+            self.logger.warning(f"Simple realistic initialization failed: {e}")
+            self.simple_realistic_animator = None
+        
+        # Try to initialize realistic face animator second (actually manipulates real face features)
         try:
             print("🎭 DEBUG: Attempting to import realistic face animator...")
             from src.realistic_face_animator import RealisticFaceAnimator
@@ -977,8 +1012,15 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try realistic face animator first (actually manipulates real face features)
-            if hasattr(self, 'realistic_animator') and self.realistic_animator:
+            # Try simple realistic face animator first (actually manipulates real face features, no complex dependencies)
+            if hasattr(self, 'simple_realistic_animator') and self.simple_realistic_animator:
+                print(f"🎭 SIMPLE REALISTIC: Using simple realistic face animation")
+                face = self.simple_realistic_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"🎭 SIMPLE REALISTIC: Generated face with shape: {face.shape}")
+                return face
+            
+            # Try realistic face animator second (actually manipulates real face features)
+            elif hasattr(self, 'realistic_animator') and self.realistic_animator:
                 print(f"🎭 REALISTIC: Using realistic face animation")
                 face = self.realistic_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 REALISTIC: Generated face with shape: {face.shape}")
