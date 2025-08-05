@@ -297,18 +297,29 @@ class DlibFaceAnimator:
                         return amplitude, frequency, phoneme_type, audio_intensity
                     
                     # Map audio intensity to mouth shapes with more sensitive thresholds
-                    if audio_intensity > 0.6:
+                    # ADD FRAME-BASED VARIATION to prevent getting stuck on same phoneme
+                    frame_variation = (frame_num % 8) / 8.0  # 8-frame cycle
+                    
+                    # Vary the intensity based on frame position to create movement
+                    varied_intensity = audio_intensity * (0.5 + frame_variation)
+                    
+                    print(f"🎭 VARIED INTENSITY: original={audio_intensity:.3f}, varied={varied_intensity:.3f}, frame_variation={frame_variation:.3f}")
+                    
+                    if varied_intensity > 0.7:
                         phoneme_type = "vowel"  # High intensity = open mouth (vowels like A, E, I, O, U)
-                        print(f"🎭 AUDIO-DRIVEN: VOWEL (intensity={audio_intensity:.3f} > 0.6)")
-                    elif audio_intensity > 0.3:
+                        print(f"🎭 AUDIO-DRIVEN: VOWEL (varied_intensity={varied_intensity:.3f} > 0.7)")
+                    elif varied_intensity > 0.4:
                         phoneme_type = "consonant"  # Medium intensity = moderate opening (consonants like B, P, M)
-                        print(f"🎭 AUDIO-DRIVEN: CONSONANT (intensity={audio_intensity:.3f} > 0.3)")
-                    elif audio_intensity > 0.1:
+                        print(f"🎭 AUDIO-DRIVEN: CONSONANT (varied_intensity={varied_intensity:.3f} > 0.4)")
+                    elif varied_intensity > 0.2:
                         phoneme_type = "neutral"  # Low intensity = slight opening
-                        print(f"🎭 AUDIO-DRIVEN: NEUTRAL (intensity={audio_intensity:.3f} > 0.1)")
+                        print(f"🎭 AUDIO-DRIVEN: NEUTRAL (varied_intensity={varied_intensity:.3f} > 0.2)")
                     else:
                         phoneme_type = "closed"  # Very low intensity = closed mouth
-                        print(f"🎭 AUDIO-DRIVEN: CLOSED (intensity={audio_intensity:.3f} <= 0.1)")
+                        print(f"🎭 AUDIO-DRIVEN: CLOSED (varied_intensity={varied_intensity:.3f} <= 0.2)")
+                    
+                    # Use the varied intensity for deformation
+                    audio_intensity = varied_intensity
                     
                     # DEBUG: Log phoneme changes
                     if hasattr(self, '_last_phoneme_debug'):
