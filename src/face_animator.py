@@ -170,13 +170,13 @@ class FaceAnimator:
         # Fallback to dlib facial landmarks if other systems not available
         if not hasattr(self, 'clean_dlib_animator') or not self.clean_dlib_animator:
             if not hasattr(self, 'simple_lip_sync') or not self.simple_lip_sync:
-            try:
-                print("🔍 DEBUG: Attempting to import dlib system...")
-                from src.dlib_face_animator import DlibFaceAnimator
-                print("✅ DEBUG: dlib import successful, creating instance...")
-                self.dlib_face_animator = DlibFaceAnimator()
-                print("✅ DLIB: Facial landmark system initialized")
-                self.logger.info("✅ dlib facial landmark system initialized")
+                try:
+                    print("🔍 DEBUG: Attempting to import dlib system...")
+                    from src.dlib_face_animator import DlibFaceAnimator
+                    print("✅ DEBUG: dlib import successful, creating instance...")
+                    self.dlib_face_animator = DlibFaceAnimator()
+                    print("✅ DLIB: Facial landmark system initialized")
+                    self.logger.info("✅ dlib facial landmark system initialized")
                 
                 # Load base face for dlib system
                 try:
