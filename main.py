@@ -205,25 +205,36 @@ class MadameLeotaApp:
             
             print("🎭 SPEAK DEBUG: About to check animation system...")
             # Check what animation system is available - DEBUG LOGGING
+            has_real_mouth = hasattr(self.face_animator, 'real_mouth_manipulator') and self.face_animator.real_mouth_manipulator is not None
             has_clean_mouth = hasattr(self.face_animator, 'clean_mouth_animator') and self.face_animator.clean_mouth_animator is not None
             
             self.logger.info(f"🔍 DEBUG - Animation System Check:")
             self.logger.info(f"  - hasattr animate_speaking_with_audio: {hasattr(self.face_animator, 'animate_speaking_with_audio')}")
+            self.logger.info(f"  - real_mouth_manipulator object: {self.face_animator.real_mouth_manipulator}")
             self.logger.info(f"  - clean_mouth_animator object: {self.face_animator.clean_mouth_animator}")
+            self.logger.info(f"  - has_real_mouth (combined): {has_real_mouth}")
             self.logger.info(f"  - has_clean_mouth (combined): {has_clean_mouth}")
             
+            if hasattr(self.face_animator, 'real_mouth_manipulator') and self.face_animator.real_mouth_manipulator:
+                self.logger.info(f"  - real mouth manipulator available")
             if hasattr(self.face_animator, 'clean_mouth_animator') and self.face_animator.clean_mouth_animator:
                 self.logger.info(f"  - mouth shapes loaded: {len(self.face_animator.clean_mouth_animator.mouth_shapes)}")
             
-            # Start clean mouth speaking animation with audio analysis
-            if has_clean_mouth:
-                # Use clean mouth animation (simple and effective)
-                self.logger.info("🎭 Using clean mouth animation")
+            # Start real mouth speaking animation with audio analysis
+            if has_real_mouth:
+                # Use real mouth manipulation (actually manipulates images)
+                self.logger.info("🎭 Using real mouth manipulation")
+                animation_task = asyncio.create_task(
+                    self.face_animator.animate_speaking_with_audio(audio_data, phonemes)
+                )
+            elif has_clean_mouth:
+                # Fallback to clean mouth animation
+                self.logger.info("🎭 Using clean mouth animation (fallback)")
                 animation_task = asyncio.create_task(
                     self.face_animator.animate_speaking_with_audio(audio_data, phonemes)
                 )
             else:
-                # Fallback to phoneme-based animation
+                # Final fallback to phoneme-based animation
                 self.logger.info("⚠️  Using fallback phoneme-based animation")
                 animation_task = asyncio.create_task(
                     self.face_animator.animate_speaking(phonemes)
