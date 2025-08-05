@@ -85,48 +85,90 @@ class FaceAnimator:
                 self.logger.warning(f"Wav2Lip initialization failed: {e}")
                 self.wav2lip_animator = None
         
-        # Initialize simple lip-sync system (clean and working)
+        # Initialize D-ID animator (Professional API-based solution)
         try:
-            print("🔍 DEBUG: Attempting to import simple lip-sync system...")
-            from src.simple_lip_sync import SimpleLipSync
-            print("✅ DEBUG: Simple lip-sync import successful, creating instance...")
-            self.simple_lip_sync = SimpleLipSync(display_manager)
-            print("✅ SIMPLE: Simple lip-sync system initialized")
-            self.logger.info("✅ Simple lip-sync system initialized")
+            print("🔍 DEBUG: Attempting to import D-ID animator...")
+            from src.did_animator import DIDAnimator
+            print("✅ DEBUG: D-ID import successful, creating instance...")
+            self.did_animator = DIDAnimator()
+            print("✅ DID: D-ID animator initialized")
+            self.logger.info("✅ D-ID animator initialized")
             
-            # Load base face for simple system
+            # Load base face for D-ID system
             try:
                 base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
                 if base_face_path.exists():
-                    print(f"🎭 SIMPLE: Loading base face from {base_face_path}")
-                    success = self.simple_lip_sync.load_base_face(str(base_face_path))
+                    print(f"🎭 DID: Loading base face from {base_face_path}")
+                    success = self.did_animator.load_base_face(str(base_face_path))
                     if success:
-                        print("✅ SIMPLE: Base face loaded successfully")
-                        self.logger.info("✅ Simple base face loaded successfully")
+                        print("✅ DID: Base face loaded successfully")
+                        self.logger.info("✅ D-ID base face loaded successfully")
                     else:
-                        print("❌ SIMPLE: Failed to load base face")
-                        self.logger.error("❌ Simple failed to load base face")
-                        self.simple_lip_sync = None
+                        print("❌ DID: Failed to load base face")
+                        self.logger.error("❌ D-ID failed to load base face")
+                        self.did_animator = None
                 else:
-                    print(f"❌ SIMPLE: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ Simple base face not found at {base_face_path}")
-                    self.simple_lip_sync = None
+                    print(f"❌ DID: Base face not found at {base_face_path}")
+                    self.logger.error(f"❌ D-ID base face not found at {base_face_path}")
+                    self.did_animator = None
             except Exception as e:
-                print(f"❌ SIMPLE: Error loading base face: {e}")
-                self.logger.error(f"❌ Simple error loading base face: {e}")
-                self.simple_lip_sync = None
+                print(f"❌ DID: Error loading base face: {e}")
+                self.logger.error(f"❌ D-ID error loading base face: {e}")
+                self.did_animator = None
                 
         except ImportError as ie:
-            print(f"⚠️ SIMPLE: Import failed - {ie}")
-            self.logger.warning(f"Simple lip-sync import failed: {ie}")
-            self.simple_lip_sync = None
+            print(f"⚠️ DID: Import failed - {ie}")
+            print("⚠️ DID: Install with: pip3 install requests")
+            self.logger.warning(f"D-ID import failed: {ie}")
+            self.did_animator = None
         except Exception as e:
-            print(f"⚠️ SIMPLE: Failed to initialize simple system: {e}")
-            self.logger.warning(f"Could not initialize simple system: {e}")
-            self.simple_lip_sync = None
+            print(f"⚠️ DID: Failed to initialize D-ID system: {e}")
+            self.logger.warning(f"Could not initialize D-ID system: {e}")
+            self.did_animator = None
         
-        # Fallback to dlib facial landmarks if simple system not available
-        if not self.simple_lip_sync:
+        # Fallback to simple lip-sync system
+        if not self.did_animator:
+            try:
+                print("🔍 DEBUG: Attempting to import simple lip-sync system...")
+                from src.simple_lip_sync import SimpleLipSync
+                print("✅ DEBUG: Simple lip-sync import successful, creating instance...")
+                self.simple_lip_sync = SimpleLipSync(display_manager)
+                print("✅ SIMPLE: Simple lip-sync system initialized")
+                self.logger.info("✅ Simple lip-sync system initialized")
+                
+                # Load base face for simple system
+                try:
+                    base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+                    if base_face_path.exists():
+                        print(f"🎭 SIMPLE: Loading base face from {base_face_path}")
+                        success = self.simple_lip_sync.load_base_face(str(base_face_path))
+                        if success:
+                            print("✅ SIMPLE: Base face loaded successfully")
+                            self.logger.info("✅ Simple base face loaded successfully")
+                        else:
+                            print("❌ SIMPLE: Failed to load base face")
+                            self.logger.error("❌ Simple failed to load base face")
+                            self.simple_lip_sync = None
+                    else:
+                        print(f"❌ SIMPLE: Base face not found at {base_face_path}")
+                        self.logger.error(f"❌ Simple base face not found at {base_face_path}")
+                        self.simple_lip_sync = None
+                except Exception as e:
+                    print(f"❌ SIMPLE: Error loading base face: {e}")
+                    self.logger.error(f"❌ Simple error loading base face: {e}")
+                    self.simple_lip_sync = None
+                    
+            except ImportError as ie:
+                print(f"⚠️ SIMPLE: Import failed - {ie}")
+                self.logger.warning(f"Simple lip-sync import failed: {ie}")
+                self.simple_lip_sync = None
+            except Exception as e:
+                print(f"⚠️ SIMPLE: Failed to initialize simple system: {e}")
+                self.logger.warning(f"Could not initialize simple system: {e}")
+                self.simple_lip_sync = None
+        
+        # Fallback to dlib facial landmarks if other systems not available
+        if not self.mediapipe_animator and not self.simple_lip_sync:
             try:
                 print("🔍 DEBUG: Attempting to import dlib system...")
                 from src.dlib_face_animator import DlibFaceAnimator
@@ -857,8 +899,15 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try simple lip-sync system first (clean and working)
-            if hasattr(self, 'simple_lip_sync') and self.simple_lip_sync:
+            # Try D-ID animator first (Professional API-based solution)
+            if hasattr(self, 'did_animator') and self.did_animator:
+                print(f"✅ DID: Using D-ID animation")
+                face = self.did_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"✅ DID: Generated face with shape: {face.shape}")
+                return face
+            
+            # Fallback to simple lip-sync system
+            elif hasattr(self, 'simple_lip_sync') and self.simple_lip_sync:
                 print(f"✅ SIMPLE: Using simple lip-sync animation")
                 face = self.simple_lip_sync.generate_face_for_audio_chunk(audio_chunk)
                 print(f"✅ SIMPLE: Generated face with shape: {face.shape}")
