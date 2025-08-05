@@ -244,21 +244,55 @@ class DlibFaceAnimator:
                 # Combine metrics for overall audio intensity
                 audio_intensity = (rms_norm + peak_norm + zcr_norm) / 3
                 
-                print(f"🎵 AUDIO ANALYSIS: RMS={rms_norm:.3f}, Peak={peak_norm:.3f}, ZCR={zcr_norm:.3f}, Intensity={audio_intensity:.3f}")
+                # REAL AUDIO ANALYSIS - Make it actually respond to audio changes
+                # Calculate audio intensity for this specific chunk
+                if len(audio_array) > 0:
+                    # Get RMS (Root Mean Square) - measures audio intensity
+                    rms = np.sqrt(np.mean(audio_array**2))
+                    
+                    # Get peak amplitude
+                    peak = np.max(np.abs(audio_array))
+                    
+                    # Get zero-crossing rate (indicates frequency content)
+                    zero_crossings = np.sum(np.diff(np.sign(audio_array)) != 0)
+                    zcr = zero_crossings / len(audio_array) if len(audio_array) > 0 else 0
+                    
+                    # Normalize values with better scaling for TTS audio
+                    rms_norm = min(1.0, rms * 20)  # Increased scaling for TTS
+                    peak_norm = min(1.0, peak * 10)  # Increased scaling for TTS
+                    zcr_norm = min(1.0, zcr * 200)  # Increased scaling for TTS
+                    
+                    # Combine metrics for overall audio intensity
+                    audio_intensity = (rms_norm + peak_norm + zcr_norm) / 3
+                    
+                    print(f"🎵 AUDIO ANALYSIS: RMS={rms_norm:.3f}, Peak={peak_norm:.3f}, ZCR={zcr_norm:.3f}, Intensity={audio_intensity:.3f}")
+                    
+                    # Map audio intensity to mouth shapes with more sensitive thresholds
+                    if audio_intensity > 0.6:
+                        phoneme_type = "vowel"  # High intensity = open mouth (vowels like A, E, I, O, U)
+                        print(f"🎭 AUDIO-DRIVEN: VOWEL (intensity={audio_intensity:.3f} > 0.6)")
+                    elif audio_intensity > 0.3:
+                        phoneme_type = "consonant"  # Medium intensity = moderate opening (consonants like B, P, M)
+                        print(f"🎭 AUDIO-DRIVEN: CONSONANT (intensity={audio_intensity:.3f} > 0.3)")
+                    elif audio_intensity > 0.1:
+                        phoneme_type = "neutral"  # Low intensity = slight opening
+                        print(f"🎭 AUDIO-DRIVEN: NEUTRAL (intensity={audio_intensity:.3f} > 0.1)")
+                    else:
+                        phoneme_type = "closed"  # Very low intensity = closed mouth
+                        print(f"🎭 AUDIO-DRIVEN: CLOSED (intensity={audio_intensity:.3f} <= 0.1)")
+                    
+                    # DEBUG: Log phoneme changes
+                    if hasattr(self, '_last_phoneme_debug'):
+                        if self._last_phoneme_debug != phoneme_type:
+                            print(f"🎭 PHONEME CHANGE DETECTED: {self._last_phoneme_debug} -> {phoneme_type}")
+                        else:
+                            print(f"🎭 SAME PHONEME: {phoneme_type}")
+                    else:
+                        print(f"🎭 FIRST PHONEME: {phoneme_type}")
+                    self._last_phoneme_debug = phoneme_type
                 
-                # Map audio intensity to mouth shapes
-                if audio_intensity > 0.7:
-                    phoneme_type = "vowel"  # High intensity = open mouth (vowels like A, E, I, O, U)
-                    print(f"🎭 AUDIO-DRIVEN: VOWEL (intensity={audio_intensity:.3f} > 0.7)")
-                elif audio_intensity > 0.4:
-                    phoneme_type = "consonant"  # Medium intensity = moderate opening (consonants like B, P, M)
-                    print(f"🎭 AUDIO-DRIVEN: CONSONANT (intensity={audio_intensity:.3f} > 0.4)")
-                elif audio_intensity > 0.1:
-                    phoneme_type = "neutral"  # Low intensity = slight opening
-                    print(f"🎭 AUDIO-DRIVEN: NEUTRAL (intensity={audio_intensity:.3f} > 0.1)")
-                else:
-                    phoneme_type = "closed"  # Very low intensity = closed mouth
-                    print(f"🎭 AUDIO-DRIVEN: CLOSED (intensity={audio_intensity:.3f} <= 0.1)")
+                # OLD AUDIO ANALYSIS CODE - REMOVED FOR TEST MODE
+                pass
             else:
                 # Fallback if no audio data
                 phoneme_type = "neutral"
