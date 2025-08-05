@@ -85,8 +85,48 @@ class FaceAnimator:
                 self.logger.warning(f"Wav2Lip initialization failed: {e}")
                 self.wav2lip_animator = None
         
-        # Fallback to dlib facial landmarks if Wav2Lip not available
-        if not self.wav2lip_animator:
+        # Initialize simple lip-sync system (clean and working)
+        try:
+            print("🔍 DEBUG: Attempting to import simple lip-sync system...")
+            from src.simple_lip_sync import SimpleLipSync
+            print("✅ DEBUG: Simple lip-sync import successful, creating instance...")
+            self.simple_lip_sync = SimpleLipSync(display_manager)
+            print("✅ SIMPLE: Simple lip-sync system initialized")
+            self.logger.info("✅ Simple lip-sync system initialized")
+            
+            # Load base face for simple system
+            try:
+                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+                if base_face_path.exists():
+                    print(f"🎭 SIMPLE: Loading base face from {base_face_path}")
+                    success = self.simple_lip_sync.load_base_face(str(base_face_path))
+                    if success:
+                        print("✅ SIMPLE: Base face loaded successfully")
+                        self.logger.info("✅ Simple base face loaded successfully")
+                    else:
+                        print("❌ SIMPLE: Failed to load base face")
+                        self.logger.error("❌ Simple failed to load base face")
+                        self.simple_lip_sync = None
+                else:
+                    print(f"❌ SIMPLE: Base face not found at {base_face_path}")
+                    self.logger.error(f"❌ Simple base face not found at {base_face_path}")
+                    self.simple_lip_sync = None
+            except Exception as e:
+                print(f"❌ SIMPLE: Error loading base face: {e}")
+                self.logger.error(f"❌ Simple error loading base face: {e}")
+                self.simple_lip_sync = None
+                
+        except ImportError as ie:
+            print(f"⚠️ SIMPLE: Import failed - {ie}")
+            self.logger.warning(f"Simple lip-sync import failed: {ie}")
+            self.simple_lip_sync = None
+        except Exception as e:
+            print(f"⚠️ SIMPLE: Failed to initialize simple system: {e}")
+            self.logger.warning(f"Could not initialize simple system: {e}")
+            self.simple_lip_sync = None
+        
+        # Fallback to dlib facial landmarks if simple system not available
+        if not self.simple_lip_sync:
             try:
                 print("🔍 DEBUG: Attempting to import dlib system...")
                 from src.dlib_face_animator import DlibFaceAnimator
@@ -817,8 +857,15 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try dlib system first (most accurate)
-            if self.dlib_face_animator:
+            # Try simple lip-sync system first (clean and working)
+            if hasattr(self, 'simple_lip_sync') and self.simple_lip_sync:
+                print(f"✅ SIMPLE: Using simple lip-sync animation")
+                face = self.simple_lip_sync.generate_face_for_audio_chunk(audio_chunk)
+                print(f"✅ SIMPLE: Generated face with shape: {face.shape}")
+                return face
+            
+            # Fallback to dlib system
+            elif self.dlib_face_animator:
                 print(f"✅ DLIB: Using facial landmark animation")
                 face = self.dlib_face_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"✅ DLIB: Generated face with shape: {face.shape}")
