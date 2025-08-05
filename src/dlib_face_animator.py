@@ -260,10 +260,10 @@ class DlibFaceAnimator:
                     # DEBUG: Show raw audio values to understand what we're working with
                     print(f"🎵 RAW AUDIO: RMS={rms:.6f}, Peak={peak:.6f}, ZCR={zcr:.6f}")
                     
-                    # Normalize values with better scaling for TTS audio
-                    rms_norm = min(1.0, rms * 20)  # Increased scaling for TTS
-                    peak_norm = min(1.0, peak * 10)  # Increased scaling for TTS
-                    zcr_norm = min(1.0, zcr * 200)  # Increased scaling for TTS
+                    # FIX: Don't cap the values - let them show real audio changes
+                    rms_norm = rms * 20  # Remove min(1.0, ...) to see real changes
+                    peak_norm = peak * 10  # Remove min(1.0, ...) to see real changes
+                    zcr_norm = zcr * 200  # Remove min(1.0, ...) to see real changes
                     
                     # Combine metrics for overall audio intensity
                     audio_intensity = (rms_norm + peak_norm + zcr_norm) / 3

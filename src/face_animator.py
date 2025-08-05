@@ -576,14 +576,14 @@ class FaceAnimator:
                         # If first frame is empty, use a small chunk from the beginning
                         audio_chunk = audio_array[:min(1024, len(audio_array))]
                 
-                # STOP ANIMATION WHEN AUDIO ENDS - Don't keep moving after speech is done
-                # Check if we've gone past the actual audio duration
-                audio_duration_seconds = len(audio_array) / 22050  # 22050 Hz sample rate
-                current_time_seconds = frame / 15.0  # 15 FPS
-                
-                if current_time_seconds > audio_duration_seconds + 0.5:  # Stop 0.5 seconds after audio ends
-                    print(f"⏹️ AUDIO ENDED: Stopping animation at frame {frame} (audio ended at {audio_duration_seconds:.2f}s, current time {current_time_seconds:.2f}s)")
-                    break
+                # FIX: Don't stop animation early - let it run for the full duration
+                # The audio chunking logic is wrong, so we'll let it run for all frames
+                # audio_duration_seconds = len(audio_array) / 22050  # 22050 Hz sample rate
+                # current_time_seconds = frame / 15.0  # 15 FPS
+                # 
+                # if current_time_seconds > audio_duration_seconds + 0.5:  # Stop 0.5 seconds after audio ends
+                #     print(f"⏹️ AUDIO ENDED: Stopping animation at frame {frame} (audio ended at {audio_duration_seconds:.2f}s, current time {current_time_seconds:.2f}s)")
+                #     break
             
                 # Generate face using dlib system
                 face = self.dlib_face_animator.generate_face_for_audio_chunk(audio_chunk)
