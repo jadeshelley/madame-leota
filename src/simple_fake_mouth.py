@@ -77,8 +77,8 @@ class SimpleFakeMouth:
         
         # More responsive to immediate audio changes
         if rms > 0.001:  # Lower threshold for more sensitivity
-            # Quick response to audio - but with better scaling
-            self.last_audio_intensity = rms * 2.0  # Reduced amplification
+            # Quick response to audio - but with much better scaling
+            self.last_audio_intensity = rms * 0.5  # Much reduced amplification
             print(f"🎭 SIMPLE FAKE: Audio detected! RMS={rms:.4f}, intensity={self.last_audio_intensity:.3f}")
         else:
             # No audio = quickly close mouth
@@ -98,34 +98,34 @@ class SimpleFakeMouth:
         base_h = self.base_height
         
         # More dramatic response to audio
-        if intensity < 0.05:
+        if intensity < 0.02:
             # Closed mouth
-            width = int(base_w * 0.2)   # Very narrow
-            height = int(base_h * 0.05)  # Very thin
+            width = int(base_w * 0.15)   # Very narrow
+            height = int(base_h * 0.03)  # Very thin
             state = "CLOSED"
-        elif intensity < 0.15:
+        elif intensity < 0.08:
             # Slightly open
-            width = int(base_w * 0.4)
-            height = int(base_h * 0.2)
+            width = int(base_w * 0.3)
+            height = int(base_h * 0.15)
             state = "SLIGHTLY OPEN"
-        elif intensity < 0.4:
+        elif intensity < 0.2:
             # Open
-            width = int(base_w * 0.7)
-            height = int(base_h * 0.5)
+            width = int(base_w * 0.6)
+            height = int(base_h * 0.4)
             state = "OPEN"
-        elif intensity < 0.7:
+        elif intensity < 0.4:
             # Wide open
-            width = int(base_w * 1.0)
-            height = int(base_h * 0.8)
+            width = int(base_w * 0.9)
+            height = int(base_h * 0.7)
             state = "WIDE OPEN"
         else:
             # Very wide open
-            width = int(base_w * 1.3)
-            height = int(base_h * 1.0)
+            width = int(base_w * 1.2)
+            height = int(base_h * 0.9)
             state = "VERY WIDE"
         
         # Add subtle breathing effect only when mouth is closed
-        if intensity < 0.05:
+        if intensity < 0.02:
             breathing = 1.0 + self.breathing_amplitude * math.sin(self.frame_counter * self.breathing_rate)
             width = int(width * breathing)
             height = int(height * breathing)
@@ -199,13 +199,13 @@ class SimpleFakeMouth:
         cv2.putText(frame, breathing_text, (10, 155), font, 0.5, (255, 255, 255), 1)
         
         # Add mouth state
-        if intensity < 0.05:
+        if intensity < 0.02:
             state_text = "State: Closed"
-        elif intensity < 0.15:
+        elif intensity < 0.08:
             state_text = "State: Slightly Open"
-        elif intensity < 0.4:
+        elif intensity < 0.2:
             state_text = "State: Open"
-        elif intensity < 0.7:
+        elif intensity < 0.4:
             state_text = "State: Wide Open"
         else:
             state_text = "State: Very Wide"
