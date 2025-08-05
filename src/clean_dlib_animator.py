@@ -117,27 +117,27 @@ class CleanDlibAnimator:
             
             # Create a speech pattern: vowel-consonant-vowel-consonant pattern
             if frame_cycle < 6:  # First 6 frames: vowel sound
-                mouth_open = 0.8
-                phoneme_type = "vowel"
-                color = (0, 255, 0)  # Green
+                mouth_open = 0.9  # More dramatic - wide open
+                phoneme_type = "VOWEL"
+                color = (0, 255, 0)  # Bright green
             elif frame_cycle < 12:  # Next 6 frames: consonant
-                mouth_open = 0.3
-                phoneme_type = "consonant"
-                color = (255, 255, 0)  # Yellow
+                mouth_open = 0.2  # More dramatic - nearly closed
+                phoneme_type = "CONSONANT"
+                color = (255, 255, 0)  # Bright yellow
             elif frame_cycle < 18:  # Next 6 frames: vowel
-                mouth_open = 0.7
-                phoneme_type = "vowel"
-                color = (0, 255, 0)  # Green
+                mouth_open = 0.8  # Medium open
+                phoneme_type = "VOWEL"
+                color = (0, 255, 0)  # Bright green
             else:  # Last 6 frames: neutral/closed
-                mouth_open = 0.2
-                phoneme_type = "neutral"
-                color = (255, 165, 0)  # Orange
+                mouth_open = 0.1  # Nearly closed
+                phoneme_type = "CLOSED"
+                color = (255, 0, 0)  # Bright red
             
             # Add some randomness to make it look more natural
             import random
             random.seed(self.frame_counter)  # Deterministic but varied
-            mouth_open += (random.random() - 0.5) * 0.1  # ±5% variation
-            mouth_open = max(0.1, min(0.9, mouth_open))  # Clamp to valid range
+            mouth_open += (random.random() - 0.5) * 0.05  # ±2.5% variation (smaller for more consistent movement)
+            mouth_open = max(0.05, min(0.95, mouth_open))  # Clamp to valid range
             
             print(f"🎵 CLEAN DLIB: Frame={frame_cycle}, phoneme={phoneme_type}, mouth_open={mouth_open:.2f}")
             
@@ -163,14 +163,14 @@ class CleanDlibAnimator:
                         # Calculate mouth center
                         mouth_center = np.mean(mouth_points, axis=0).astype(int)
                         
-                        # Draw animated mouth overlay
-                        mouth_radius = int(20 + (mouth_open * 40))  # 20-60 pixels
+                        # Draw animated mouth overlay - MORE DRAMATIC SIZE RANGE
+                        mouth_radius = int(15 + (mouth_open * 80))  # 15-95 pixels (much bigger range!)
                         cv2.circle(result, tuple(mouth_center), mouth_radius, color, -1)
                         
-                        # Add text label
+                        # Add text label - BIGGER TEXT
                         font = cv2.FONT_HERSHEY_SIMPLEX
-                        text_pos = (mouth_center[0] - 50, mouth_center[1] - mouth_radius - 20)
-                        cv2.putText(result, phoneme_type.upper(), text_pos, font, 0.8, (255, 255, 255), 2)
+                        text_pos = (mouth_center[0] - 80, mouth_center[1] - mouth_radius - 30)
+                        cv2.putText(result, phoneme_type, text_pos, font, 1.2, (255, 255, 255), 3)  # Bigger, thicker text
                         
                         # Add dlib info
                         info_text = f"dlib: {len(mouth_points)} points"
@@ -179,12 +179,12 @@ class CleanDlibAnimator:
                         # Fallback: draw in center
                         center_x = result.shape[1] // 2
                         center_y = result.shape[0] // 2 + 100
-                        mouth_radius = int(20 + (mouth_open * 40))
+                        mouth_radius = int(15 + (mouth_open * 80))  # Same dramatic range
                         cv2.circle(result, (center_x, center_y), mouth_radius, color, -1)
                         
                         font = cv2.FONT_HERSHEY_SIMPLEX
-                        text_pos = (center_x - 50, center_y - mouth_radius - 20)
-                        cv2.putText(result, phoneme_type.upper(), text_pos, font, 0.8, (255, 255, 255), 2)
+                        text_pos = (center_x - 80, center_y - mouth_radius - 30)
+                        cv2.putText(result, phoneme_type, text_pos, font, 1.2, (255, 255, 255), 3)
                         
                         info_text = "dlib: fallback"
                         cv2.putText(result, info_text, (10, 60), font, 0.6, (255, 255, 255), 2)
@@ -192,12 +192,12 @@ class CleanDlibAnimator:
                     # No face detected, use fallback
                     center_x = result.shape[1] // 2
                     center_y = result.shape[0] // 2 + 100
-                    mouth_radius = int(20 + (mouth_open * 40))
+                    mouth_radius = int(15 + (mouth_open * 80))  # Same dramatic range
                     cv2.circle(result, (center_x, center_y), mouth_radius, color, -1)
                     
                     font = cv2.FONT_HERSHEY_SIMPLEX
-                    text_pos = (center_x - 50, center_y - mouth_radius - 20)
-                    cv2.putText(result, phoneme_type.upper(), text_pos, font, 0.8, (255, 255, 255), 2)
+                    text_pos = (center_x - 80, center_y - mouth_radius - 30)
+                    cv2.putText(result, phoneme_type, text_pos, font, 1.2, (255, 255, 255), 3)
                     
                     info_text = "dlib: no face"
                     cv2.putText(result, info_text, (10, 60), font, 0.6, (255, 255, 255), 2)
@@ -205,12 +205,12 @@ class CleanDlibAnimator:
                 # dlib not available, use simple fallback
                 center_x = result.shape[1] // 2
                 center_y = result.shape[0] // 2 + 100
-                mouth_radius = int(20 + (mouth_open * 40))
+                mouth_radius = int(15 + (mouth_open * 80))  # Same dramatic range
                 cv2.circle(result, (center_x, center_y), mouth_radius, color, -1)
                 
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                text_pos = (center_x - 50, center_y - mouth_radius - 20)
-                cv2.putText(result, phoneme_type.upper(), text_pos, font, 0.8, (255, 255, 255), 2)
+                text_pos = (center_x - 80, center_y - mouth_radius - 30)
+                cv2.putText(result, phoneme_type, text_pos, font, 1.2, (255, 255, 255), 3)
                 
                 info_text = "dlib: disabled"
                 cv2.putText(result, info_text, (10, 60), font, 0.6, (255, 255, 255), 2)
