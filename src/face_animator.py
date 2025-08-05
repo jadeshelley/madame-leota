@@ -127,7 +127,7 @@ class FaceAnimator:
             self.clean_dlib_animator = None
         
         # Fallback to simple lip-sync system
-        if not self.clean_dlib_animator:
+        if not hasattr(self, 'clean_dlib_animator') or not self.clean_dlib_animator:
             try:
                 print("🔍 DEBUG: Attempting to import simple lip-sync system...")
                 from src.simple_lip_sync import SimpleLipSync
@@ -168,7 +168,8 @@ class FaceAnimator:
                 self.simple_lip_sync = None
         
         # Fallback to dlib facial landmarks if other systems not available
-        if not self.mediapipe_animator and not self.simple_lip_sync:
+        if not hasattr(self, 'clean_dlib_animator') or not self.clean_dlib_animator:
+            if not hasattr(self, 'simple_lip_sync') or not self.simple_lip_sync:
             try:
                 print("🔍 DEBUG: Attempting to import dlib system...")
                 from src.dlib_face_animator import DlibFaceAnimator
