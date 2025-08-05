@@ -97,31 +97,31 @@ class SimpleFakeMouth:
         base_w = self.base_width
         base_h = self.base_height
         
-        # More dramatic response to audio
+        # Much more dramatic response to audio - make it very obvious!
         if intensity < 0.02:
-            # Closed mouth
-            width = int(base_w * 0.15)   # Very narrow
-            height = int(base_h * 0.03)  # Very thin
+            # Closed mouth - make it tiny
+            width = int(base_w * 0.1)    # Very very narrow
+            height = int(base_h * 0.02)  # Very very thin
             state = "CLOSED"
         elif intensity < 0.08:
-            # Slightly open
-            width = int(base_w * 0.3)
-            height = int(base_h * 0.15)
+            # Slightly open - make it clearly visible
+            width = int(base_w * 0.4)
+            height = int(base_h * 0.25)
             state = "SLIGHTLY OPEN"
         elif intensity < 0.2:
-            # Open
-            width = int(base_w * 0.6)
-            height = int(base_h * 0.4)
+            # Open - make it obvious
+            width = int(base_w * 0.8)
+            height = int(base_h * 0.6)
             state = "OPEN"
         elif intensity < 0.4:
-            # Wide open
-            width = int(base_w * 0.9)
-            height = int(base_h * 0.7)
+            # Wide open - make it very obvious
+            width = int(base_w * 1.1)
+            height = int(base_h * 0.9)
             state = "WIDE OPEN"
         else:
-            # Very wide open
-            width = int(base_w * 1.2)
-            height = int(base_h * 0.9)
+            # Very wide open - make it huge!
+            width = int(base_w * 1.5)
+            height = int(base_h * 1.2)
             state = "VERY WIDE"
         
         # Add subtle breathing effect only when mouth is closed
@@ -138,28 +138,34 @@ class SimpleFakeMouth:
         try:
             x, y = self.mouth_center
             
-            # Draw mouth background (dark area)
-            mouth_color = (20, 20, 20)  # Dark gray
+            # Draw mouth background (much more obvious colors)
+            if intensity < 0.1:
+                mouth_color = (0, 0, 0)  # Pure black when closed
+            else:
+                mouth_color = (0, 0, 100)  # Bright blue when open
             cv2.ellipse(frame, (x, y), (width//2, height//2), 0, 0, 360, mouth_color, -1)
             
-            # Draw lip outline
-            lip_color = (80, 40, 40)  # Dark red
-            lip_thickness = max(2, int(4 * intensity))  # Thicker lips when more open
+            # Draw lip outline (much more vibrant)
+            if intensity < 0.1:
+                lip_color = (0, 0, 255)  # Bright red when closed
+            else:
+                lip_color = (0, 255, 0)  # Bright green when open
+            lip_thickness = max(3, int(6 * intensity))  # Much thicker lips
             cv2.ellipse(frame, (x, y), (width//2, height//2), 0, 0, 360, lip_color, lip_thickness)
             
-            # Draw inner mouth detail (tongue/teeth area)
-            if intensity > 0.3:  # Only show when mouth is open enough
-                inner_color = (40, 20, 20)  # Darker red
-                inner_width = int(width * 0.7)
-                inner_height = int(height * 0.6)
+            # Draw inner mouth detail (much more obvious)
+            if intensity > 0.2:  # Show earlier
+                inner_color = (255, 0, 0)  # Bright red inner mouth
+                inner_width = int(width * 0.8)
+                inner_height = int(height * 0.7)
                 cv2.ellipse(frame, (x, y), (inner_width//2, inner_height//2), 0, 0, 360, inner_color, -1)
             
-            # Add some highlights for realism
-            if intensity > 0.5:
-                highlight_color = (100, 50, 50)  # Lighter red
-                highlight_width = int(width * 0.3)
-                highlight_height = int(height * 0.2)
-                highlight_y = y - height//4
+            # Add very obvious highlights
+            if intensity > 0.3:
+                highlight_color = (255, 255, 0)  # Bright yellow highlights
+                highlight_width = int(width * 0.4)
+                highlight_height = int(height * 0.3)
+                highlight_y = y - height//3
                 cv2.ellipse(frame, (x, highlight_y), (highlight_width//2, highlight_height//2), 0, 0, 360, highlight_color, -1)
                 
         except Exception as e:
