@@ -82,7 +82,7 @@ class SimpleFakeMouth:
             print(f"🎭 SIMPLE FAKE: Audio detected! RMS={rms:.4f}, intensity={self.last_audio_intensity:.3f}")
         else:
             # No audio = quickly close mouth
-            self.last_audio_intensity = max(0.0, self.last_audio_intensity - 0.1)
+            self.last_audio_intensity = max(0.0, self.last_audio_intensity - 0.2)  # Close faster
             print(f"🎭 SIMPLE FAKE: Low audio, closing mouth, intensity={self.last_audio_intensity:.3f}")
         
         # No artificial variation - only respond to real audio
@@ -138,35 +138,15 @@ class SimpleFakeMouth:
         try:
             x, y = self.mouth_center
             
-            # Draw mouth background (much more obvious colors)
-            if intensity < 0.1:
-                mouth_color = (0, 0, 0)  # Pure black when closed
+            # Draw ONE simple mouth oval that changes size and color
+            if intensity < 0.05:
+                # Closed mouth - tiny and red
+                mouth_color = (0, 0, 255)  # Bright red
+                cv2.ellipse(frame, (x, y), (width//2, height//2), 0, 0, 360, mouth_color, -1)
             else:
-                mouth_color = (0, 0, 100)  # Bright blue when open
-            cv2.ellipse(frame, (x, y), (width//2, height//2), 0, 0, 360, mouth_color, -1)
-            
-            # Draw lip outline (much more vibrant)
-            if intensity < 0.1:
-                lip_color = (0, 0, 255)  # Bright red when closed
-            else:
-                lip_color = (0, 255, 0)  # Bright green when open
-            lip_thickness = max(3, int(6 * intensity))  # Much thicker lips
-            cv2.ellipse(frame, (x, y), (width//2, height//2), 0, 0, 360, lip_color, lip_thickness)
-            
-            # Draw inner mouth detail (much more obvious)
-            if intensity > 0.2:  # Show earlier
-                inner_color = (255, 0, 0)  # Bright red inner mouth
-                inner_width = int(width * 0.8)
-                inner_height = int(height * 0.7)
-                cv2.ellipse(frame, (x, y), (inner_width//2, inner_height//2), 0, 0, 360, inner_color, -1)
-            
-            # Add very obvious highlights
-            if intensity > 0.3:
-                highlight_color = (255, 255, 0)  # Bright yellow highlights
-                highlight_width = int(width * 0.4)
-                highlight_height = int(height * 0.3)
-                highlight_y = y - height//3
-                cv2.ellipse(frame, (x, highlight_y), (highlight_width//2, highlight_height//2), 0, 0, 360, highlight_color, -1)
+                # Open mouth - larger and green
+                mouth_color = (0, 255, 0)  # Bright green
+                cv2.ellipse(frame, (x, y), (width//2, height//2), 0, 0, 360, mouth_color, -1)
                 
         except Exception as e:
             print(f"❌ SIMPLE FAKE: Error drawing mouth: {e}")
