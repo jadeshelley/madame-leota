@@ -85,49 +85,49 @@ class FaceAnimator:
                 self.logger.warning(f"Wav2Lip initialization failed: {e}")
                 self.wav2lip_animator = None
         
-        # Initialize D-ID animator (Professional API-based solution)
+        # Initialize clean dlib animator (Local, reliable solution)
         try:
-            print("🔍 DEBUG: Attempting to import D-ID animator...")
-            from src.did_animator import DIDAnimator
-            print("✅ DEBUG: D-ID import successful, creating instance...")
-            self.did_animator = DIDAnimator()
-            print("✅ DID: D-ID animator initialized")
-            self.logger.info("✅ D-ID animator initialized")
+            print("🔍 DEBUG: Attempting to import clean dlib animator...")
+            from src.clean_dlib_animator import CleanDlibAnimator
+            print("✅ DEBUG: Clean dlib import successful, creating instance...")
+            self.clean_dlib_animator = CleanDlibAnimator()
+            print("✅ CLEAN DLIB: Clean dlib animator initialized")
+            self.logger.info("✅ Clean dlib animator initialized")
             
-            # Load base face for D-ID system
+            # Load base face for clean dlib system
             try:
                 base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
                 if base_face_path.exists():
-                    print(f"🎭 DID: Loading base face from {base_face_path}")
-                    success = self.did_animator.load_base_face(str(base_face_path))
+                    print(f"🎭 CLEAN DLIB: Loading base face from {base_face_path}")
+                    success = self.clean_dlib_animator.load_base_face(str(base_face_path))
                     if success:
-                        print("✅ DID: Base face loaded successfully")
-                        self.logger.info("✅ D-ID base face loaded successfully")
+                        print("✅ CLEAN DLIB: Base face loaded successfully")
+                        self.logger.info("✅ Clean dlib base face loaded successfully")
                     else:
-                        print("❌ DID: Failed to load base face")
-                        self.logger.error("❌ D-ID failed to load base face")
-                        self.did_animator = None
+                        print("❌ CLEAN DLIB: Failed to load base face")
+                        self.logger.error("❌ Clean dlib failed to load base face")
+                        self.clean_dlib_animator = None
                 else:
-                    print(f"❌ DID: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ D-ID base face not found at {base_face_path}")
-                    self.did_animator = None
+                    print(f"❌ CLEAN DLIB: Base face not found at {base_face_path}")
+                    self.logger.error(f"❌ Clean dlib base face not found at {base_face_path}")
+                    self.clean_dlib_animator = None
             except Exception as e:
-                print(f"❌ DID: Error loading base face: {e}")
-                self.logger.error(f"❌ D-ID error loading base face: {e}")
-                self.did_animator = None
+                print(f"❌ CLEAN DLIB: Error loading base face: {e}")
+                self.logger.error(f"❌ Clean dlib error loading base face: {e}")
+                self.clean_dlib_animator = None
                 
         except ImportError as ie:
-            print(f"⚠️ DID: Import failed - {ie}")
-            print("⚠️ DID: Install with: pip3 install requests")
-            self.logger.warning(f"D-ID import failed: {ie}")
-            self.did_animator = None
+            print(f"⚠️ CLEAN DLIB: Import failed - {ie}")
+            print("⚠️ CLEAN DLIB: Install with: pip3 install dlib opencv-python")
+            self.logger.warning(f"Clean dlib import failed: {ie}")
+            self.clean_dlib_animator = None
         except Exception as e:
-            print(f"⚠️ DID: Failed to initialize D-ID system: {e}")
-            self.logger.warning(f"Could not initialize D-ID system: {e}")
-            self.did_animator = None
+            print(f"⚠️ CLEAN DLIB: Failed to initialize clean dlib system: {e}")
+            self.logger.warning(f"Could not initialize clean dlib system: {e}")
+            self.clean_dlib_animator = None
         
         # Fallback to simple lip-sync system
-        if not self.did_animator:
+        if not self.clean_dlib_animator:
             try:
                 print("🔍 DEBUG: Attempting to import simple lip-sync system...")
                 from src.simple_lip_sync import SimpleLipSync
@@ -899,11 +899,11 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try D-ID animator first (Professional API-based solution)
-            if hasattr(self, 'did_animator') and self.did_animator:
-                print(f"✅ DID: Using D-ID animation")
-                face = self.did_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"✅ DID: Generated face with shape: {face.shape}")
+            # Try clean dlib animator first (Local, reliable solution)
+            if hasattr(self, 'clean_dlib_animator') and self.clean_dlib_animator:
+                print(f"✅ CLEAN DLIB: Using clean dlib animation")
+                face = self.clean_dlib_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"✅ CLEAN DLIB: Generated face with shape: {face.shape}")
                 return face
             
             # Fallback to simple lip-sync system
