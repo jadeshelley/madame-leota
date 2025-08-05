@@ -34,6 +34,8 @@ class SimpleFakeMouth:
     def generate_mouth_frame(self, audio_chunk: np.ndarray) -> np.ndarray:
         """Generate a frame with animated fake mouth"""
         try:
+            print(f"🎭 SIMPLE FAKE: Generating frame {self.frame_counter}, audio chunk: {len(audio_chunk)} samples")
+            
             # Create blank frame
             frame = np.zeros((600, 800, 3), dtype=np.uint8)
             
@@ -49,6 +51,7 @@ class SimpleFakeMouth:
             # Add debug info
             self._add_debug_info(frame, audio_chunk, audio_intensity, mouth_width, mouth_height)
             
+            print(f"🎭 SIMPLE FAKE: Frame {self.frame_counter} complete - intensity: {audio_intensity:.3f}, mouth: {mouth_width}x{mouth_height}")
             self.frame_counter += 1
             return frame
             
@@ -65,22 +68,28 @@ class SimpleFakeMouth:
         if len(audio_chunk) == 0:
             # No audio = mouth should be closed
             self.last_audio_intensity = 0.0
+            print(f"🎭 SIMPLE FAKE: No audio chunk, intensity = 0.0")
             return 0.0
         
         # Calculate RMS for audio intensity
         rms = np.sqrt(np.mean(audio_chunk**2))
+        print(f"🎭 SIMPLE FAKE: Audio chunk {len(audio_chunk)} samples, RMS = {rms:.4f}")
         
         # More responsive to immediate audio changes
-        if rms > 0.01:  # If there's actual audio
+        if rms > 0.001:  # Lower threshold for more sensitivity
             # Quick response to audio
-            self.last_audio_intensity = rms * 5.0  # Amplify the response
+            self.last_audio_intensity = rms * 10.0  # More amplification
+            print(f"🎭 SIMPLE FAKE: Audio detected! RMS={rms:.4f}, intensity={self.last_audio_intensity:.3f}")
         else:
             # No audio = quickly close mouth
-            self.last_audio_intensity = max(0.0, self.last_audio_intensity - 0.1)
+            self.last_audio_intensity = max(0.0, self.last_audio_intensity - 0.05)
+            print(f"🎭 SIMPLE FAKE: Low audio, closing mouth, intensity={self.last_audio_intensity:.3f}")
         
         # No artificial variation - only respond to real audio
         intensity = self.last_audio_intensity
-        return max(0.0, min(1.0, intensity))
+        final_intensity = max(0.0, min(1.0, intensity))
+        print(f"🎭 SIMPLE FAKE: Final intensity = {final_intensity:.3f}")
+        return final_intensity
     
     def _calculate_mouth_size(self, intensity: float) -> tuple:
         """Calculate mouth width and height based on audio intensity"""
@@ -93,22 +102,27 @@ class SimpleFakeMouth:
             # Closed mouth
             width = int(base_w * 0.3)   # Very narrow
             height = int(base_h * 0.1)  # Very thin
+            state = "CLOSED"
         elif intensity < 0.3:
             # Slightly open
             width = int(base_w * 0.6)
             height = int(base_h * 0.3)
+            state = "SLIGHTLY OPEN"
         elif intensity < 0.6:
             # Open
             width = int(base_w * 0.9)
             height = int(base_h * 0.7)
+            state = "OPEN"
         elif intensity < 0.8:
             # Wide open
             width = int(base_w * 1.2)
             height = int(base_h * 1.1)
+            state = "WIDE OPEN"
         else:
             # Very wide open
             width = int(base_w * 1.5)
             height = int(base_h * 1.4)
+            state = "VERY WIDE"
         
         # Add subtle breathing effect only when mouth is closed
         if intensity < 0.1:
@@ -116,6 +130,7 @@ class SimpleFakeMouth:
             width = int(width * breathing)
             height = int(height * breathing)
         
+        print(f"🎭 SIMPLE FAKE: Intensity={intensity:.3f} -> {state} mouth: {width}x{height}")
         return width, height
     
     def _draw_mouth(self, frame: np.ndarray, width: int, height: int, intensity: float):
