@@ -28,6 +28,10 @@ class FaceAnimator:
         self.current_face = None
         self.idle_animation_running = False
         
+        # Initialize animation system attributes
+        self.real_mouth_manipulator = None
+        self.clean_mouth_animator = None
+        
         # Initialize real mouth manipulator (actually manipulates images)
         try:
             print("🎭 DEBUG: Attempting to import real mouth manipulator...")
