@@ -73,7 +73,19 @@ class FaceAnimator:
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize SadTalker first (highest quality)
+        # Try to initialize Live2D animator first (Pi-friendly, no heavy dependencies)
+        try:
+            print("🎭 DEBUG: Attempting to import Live2D animator...")
+            from src.live2d_animator import Live2DAnimator
+            self.live2d_animator = Live2DAnimator()
+            print("✅ LIVE2D: Live2D-style animation system initialized")
+            self.logger.info("✅ Live2D animation system initialized")
+        except Exception as e:
+            print(f"❌ LIVE2D: Failed to initialize: {e}")
+            self.logger.warning(f"Live2D initialization failed: {e}")
+            self.live2d_animator = None
+        
+        # Try to initialize SadTalker second (if available)
         try:
             print("🎭 DEBUG: Attempting to import SadTalker animator...")
             from src.sadtalker_animator import SadTalkerAnimator
@@ -907,14 +919,21 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try SadTalker first (highest quality AI talking face)
-            if hasattr(self, 'sadtalker_animator') and self.sadtalker_animator:
+            # Try Live2D animator first (Pi-friendly, smooth animations)
+            if hasattr(self, 'live2d_animator') and self.live2d_animator:
+                print(f"🎭 LIVE2D: Using Live2D-style animation")
+                face = self.live2d_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"🎭 LIVE2D: Generated face with shape: {face.shape}")
+                return face
+            
+            # Try SadTalker second (if available)
+            elif hasattr(self, 'sadtalker_animator') and self.sadtalker_animator:
                 print(f"🎭 SADTALKER: Using AI talking face animation")
                 face = self.sadtalker_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 SADTALKER: Generated face with shape: {face.shape}")
                 return face
             
-            # Try clean dlib animator second (Local, reliable solution)
+            # Try clean dlib animator third (Local, reliable solution)
             elif hasattr(self, 'clean_dlib_animator') and self.clean_dlib_animator:
                 print(f"✅ CLEAN DLIB: Using clean dlib animation")
                 face = self.clean_dlib_animator.generate_face_for_audio_chunk(audio_chunk)
