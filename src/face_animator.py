@@ -550,6 +550,9 @@ class FaceAnimator:
             samples_per_frame = max(1024, raw_samples_per_frame)  # Ensure minimum 1024 samples for better frequency analysis
             
             print(f"🎭 CHUNK SIZE FIX: raw_samples_per_frame={raw_samples_per_frame}, fixed_samples_per_frame={samples_per_frame}")
+            print(f"🎭 AUDIO ANALYSIS: total_audio_samples={len(audio_array)}, total_frames={total_frames}")
+            print(f"🎭 CHUNKING MATH: samples_per_frame={samples_per_frame}, total_samples_needed={samples_per_frame * total_frames}")
+            print(f"🎭 CHUNKING CHECK: Will run out of audio at frame {len(audio_array) // samples_per_frame}")
             self.logger.info(f"Processing {samples_per_frame} samples per frame (minimum 1024 for analysis)")
             
             # Real-time animation loop using dlib
@@ -562,8 +565,16 @@ class FaceAnimator:
                 end_idx = min(start_idx + samples_per_frame, len(audio_array))
                 audio_chunk = audio_array[start_idx:end_idx]
                 
+                # CRITICAL FIX: Don't break if audio chunk is empty, just use the last available audio
                 if len(audio_chunk) == 0:
-                    break
+                    print(f"⚠️ AUDIO CHUNK EMPTY: Frame {frame}, using last available audio")
+                    # Use the last available audio chunk instead of breaking
+                    if frame > 0:
+                        start_idx = max(0, len(audio_array) - samples_per_frame)
+                        audio_chunk = audio_array[start_idx:]
+                    else:
+                        # If first frame is empty, use a small chunk from the beginning
+                        audio_chunk = audio_array[:min(1024, len(audio_array))]
             
                 # Generate face using dlib system
                 face = self.dlib_face_animator.generate_face_for_audio_chunk(audio_chunk)
@@ -689,8 +700,16 @@ class FaceAnimator:
                 end_idx = min(start_idx + samples_per_frame, len(audio_array))
                 audio_chunk = audio_array[start_idx:end_idx]
                 
+                # CRITICAL FIX: Don't break if audio chunk is empty, just use the last available audio
                 if len(audio_chunk) == 0:
-                    break
+                    print(f"⚠️ AUDIO CHUNK EMPTY: Frame {frame}, using last available audio")
+                    # Use the last available audio chunk instead of breaking
+                    if frame > 0:
+                        start_idx = max(0, len(audio_array) - samples_per_frame)
+                        audio_chunk = audio_array[start_idx:]
+                    else:
+                        # If first frame is empty, use a small chunk from the beginning
+                        audio_chunk = audio_array[:min(1024, len(audio_array))]
             
                 # Generate face for this chunk
                 face = self._generate_face_for_chunk(audio_chunk)
