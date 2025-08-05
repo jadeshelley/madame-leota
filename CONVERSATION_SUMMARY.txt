@@ -1,0 +1,78 @@
+MADAME LEOTA PROJECT - CONVERSATION SUMMARY
+============================================
+
+LAST UPDATED: Current session
+STATUS: Debugging black window issue - face animation working but not displaying
+
+CURRENT ISSUE:
+- The Madame Leota application is running successfully
+- Face animation system (dlib) is working perfectly
+- Audio processing and TTS are working
+- BUT: The Pygame window shows only black - no face image is visible
+- All logs show "successful" display updates, but nothing appears on screen
+
+RECENT DEBUGGING STEPS:
+1. Added detailed debug logging to display_manager.py
+2. Added test pattern (red square) to verify basic drawing works
+3. Added step-by-step logging in display_image() method
+4. Committed and pushed changes to wav2lip-integration branch
+
+CURRENT STATE:
+- User needs to pull latest changes: git pull origin wav2lip-integration
+- Then run: python main.py
+- Look for red square in top-left corner of window
+- Check for new debug logs starting with 🎨 CLEAR DEBUG: and 🎨 DISPLAY DEBUG:
+
+TECHNICAL DETAILS:
+- Face image processing: ✅ Working (logs show successful cropping/scaling)
+- Audio analysis: ✅ Working (logs show amplitude/frequency analysis)
+- Dlib animation: ✅ Working (logs show successful face generation)
+- Pygame display: ❌ Issue (window shows black despite "successful" logs)
+
+KEY FILES MODIFIED:
+- src/display_manager.py: Added debug logging and test pattern
+- src/dlib_face_animator.py: Enhanced mouth animation system
+- src/face_animator.py: Fixed dlib integration and base face loading
+
+NEXT STEPS:
+1. Pull latest changes from git
+2. Run application and look for red test square
+3. Check new debug logs to identify exact failure point
+4. If red square appears: Issue is in face image processing
+5. If red square doesn't appear: Issue is in basic Pygame drawing
+
+BRANCH: wav2lip-integration
+COMMIT: Latest includes display debug logging
+
+PROJECT STRUCTURE:
+- Main application: main.py
+- Display management: src/display_manager.py
+- Face animation: src/face_animator.py
+- Dlib animation: src/dlib_face_animator.py
+- Configuration: config.py
+- Face assets: assets/faces/realistic_face.jpg
+
+KNOWN WORKING COMPONENTS:
+- ChatGPT integration
+- Text-to-speech (Edge TTS)
+- Audio playback
+- Dlib facial landmark detection
+- Face image loading and processing
+- Audio analysis and phoneme classification
+- Mouth animation algorithms
+
+KNOWN ISSUES:
+- Pygame window not displaying face images (primary issue)
+- Window may appear behind other windows (secondary)
+
+DEBUG COMMANDS:
+git pull origin wav2lip-integration
+python main.py
+
+EXPECTED DEBUG OUTPUT:
+- 🎨 CLEAR DEBUG: Clearing screen with color (50, 0, 100)
+- 🎨 CLEAR DEBUG: Test pattern drawn - look for red square in top-left corner
+- 🎨 DISPLAY DEBUG: Image shape: (614, 600, 3), dtype: uint8, position: (307, 300)
+- 🎨 DISPLAY DEBUG: Surface created successfully, size: (600, 614)
+
+If these logs don't appear, the user hasn't pulled the latest changes yet. 

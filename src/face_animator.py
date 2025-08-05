@@ -1,466 +1,62 @@
 """
-Face Animator for Madame Leota
-Controls facial expressions, lip sync, and idle animations
-Supports both smooth morphing and real-time face manipulation
+Face Animator - Clean and Simple
+Uses only the clean mouth animator that works reliably on Pi
+No complex dependencies - just basic OpenCV operations
 """
 
 import cv2
 import numpy as np
-import asyncio
 import logging
+import asyncio
 import time
+import random
 import math
-from typing import List, Dict, Optional, Tuple
 from pathlib import Path
+from typing import List, Dict, Optional
 from config import *
 
-# Import real-time face manipulator if enabled
-if USE_REALTIME_FACE_MANIPULATION:
-    try:
-        from .realtime_face_manipulator import RealtimeFaceManipulator
-        REALTIME_AVAILABLE = True
-    except ImportError as e:
-        logging.warning(f"Real-time face manipulation not available: {e}")
-        REALTIME_AVAILABLE = False
-else:
-    REALTIME_AVAILABLE = False
-
-# Import Wav2Lip AI system if enabled
-if USE_WAV2LIP:
-    try:
-        logging.info("Attempting to import Wav2Lip AI...")
-        from .wav2lip_animator import get_wav2lip_animator
-        WAV2LIP_AVAILABLE = True
-        logging.info("✅ Wav2Lip AI imported successfully!")
-    except ImportError as e:
-        logging.warning(f"❌ Wav2Lip AI not available: {e}")
-        WAV2LIP_AVAILABLE = False
-else:
-    logging.info("USE_WAV2LIP is False in config")
-    WAV2LIP_AVAILABLE = False
-
-# Import audio-driven face system if enabled
-if USE_AUDIO_DRIVEN_FACE:
-    try:
-        logging.info("Attempting to import AudioDrivenFace...")
-        from .audio_driven_face import AudioDrivenFace
-        AUDIO_DRIVEN_AVAILABLE = True
-        logging.info("✅ AudioDrivenFace imported successfully!")
-    except ImportError as e:
-        logging.warning(f"❌ Audio-driven face manipulation not available: {e}")
-        AUDIO_DRIVEN_AVAILABLE = False
-else:
-    logging.info("USE_AUDIO_DRIVEN_FACE is False in config")
-    AUDIO_DRIVEN_AVAILABLE = False
-
 class FaceAnimator:
+    """Clean face animator that works reliably on Pi"""
+    
     def __init__(self, display_manager):
-        self.logger = logging.getLogger(__name__)
         self.display_manager = display_manager
-        
-        # Log configuration status
-        self.logger.info(f"Face Animator Config - USE_AUDIO_DRIVEN_FACE: {USE_AUDIO_DRIVEN_FACE}")
-        self.logger.info(f"Face Animator Config - AUDIO_DRIVEN_AVAILABLE: {AUDIO_DRIVEN_AVAILABLE}")
+        self.logger = logging.getLogger(__name__)
         
         # Animation state
-        self.current_state = "idle"
         self.is_speaking = False
+        self.current_state = "idle"
+        self.current_face = None
         self.idle_animation_running = False
         
-        # Initialize different animation systems based on config
-        self.wav2lip_animator = None
-        self.dlib_face_animator = None
-        self.audio_driven_face = None
-        self.current_face = None
-        
-        # Try to initialize direct mouth animator first (simple and effective)
+        # Initialize clean mouth animator (the only system we need)
         try:
-            print("🎭 DEBUG: Attempting to import direct mouth animator...")
-            from src.direct_mouth_animator import DirectMouthAnimator
-            self.direct_mouth_animator = DirectMouthAnimator()
-            print("✅ DIRECT MOUTH: Direct mouth animation system initialized")
-            self.logger.info("✅ Direct mouth animation system initialized")
+            print("🎭 DEBUG: Attempting to import clean mouth animator...")
+            from src.clean_mouth_animator import CleanMouthAnimator
+            self.clean_mouth_animator = CleanMouthAnimator()
+            print("✅ CLEAN MOUTH: Clean mouth animation system initialized")
+            self.logger.info("✅ Clean mouth animation system initialized")
             
-            # Load mouth shapes for direct mouth system
+            # Load mouth shapes for clean mouth system
             try:
                 faces_dir = FACE_ASSETS_DIR
-                print(f"🎭 DIRECT MOUTH: Loading mouth shapes from {faces_dir}")
-                success = self.direct_mouth_animator.load_mouth_shapes(faces_dir)
+                print(f"🎭 CLEAN MOUTH: Loading mouth shapes from {faces_dir}")
+                success = self.clean_mouth_animator.load_mouth_shapes(faces_dir)
                 if success:
-                    print("✅ DIRECT MOUTH: Mouth shapes loaded successfully")
-                    self.logger.info("✅ Direct mouth shapes loaded successfully")
+                    print("✅ CLEAN MOUTH: Mouth shapes loaded successfully")
+                    self.logger.info("✅ Clean mouth shapes loaded successfully")
                 else:
-                    print("❌ DIRECT MOUTH: Failed to load mouth shapes")
-                    self.logger.error("❌ Direct mouth failed to load mouth shapes")
-                    self.direct_mouth_animator = None
+                    print("❌ CLEAN MOUTH: Failed to load mouth shapes")
+                    self.logger.error("❌ Clean mouth failed to load mouth shapes")
+                    self.clean_mouth_animator = None
             except Exception as e:
-                print(f"❌ DIRECT MOUTH: Error loading mouth shapes: {e}")
-                self.logger.error(f"❌ Direct mouth error loading mouth shapes: {e}")
-                self.direct_mouth_animator = None
+                print(f"❌ CLEAN MOUTH: Error loading mouth shapes: {e}")
+                self.logger.error(f"❌ Clean mouth error loading mouth shapes: {e}")
+                self.clean_mouth_animator = None
                 
         except Exception as e:
-            print(f"❌ DIRECT MOUTH: Failed to initialize: {e}")
-            self.logger.warning(f"Direct mouth initialization failed: {e}")
-            self.direct_mouth_animator = None
-        
-        # Try to initialize smart mouth animator second (actually responds to audio)
-        try:
-            print("🎭 DEBUG: Attempting to import smart mouth animator...")
-            from src.smart_mouth_animator import SmartMouthAnimator
-            self.smart_mouth_animator = SmartMouthAnimator()
-            print("✅ SMART MOUTH: Smart mouth animation system initialized")
-            self.logger.info("✅ Smart mouth animation system initialized")
-            
-            # Load mouth shapes for smart mouth system
-            try:
-                faces_dir = FACE_ASSETS_DIR
-                print(f"🎭 SMART MOUTH: Loading mouth shapes from {faces_dir}")
-                success = self.smart_mouth_animator.load_mouth_shapes(faces_dir)
-                if success:
-                    print("✅ SMART MOUTH: Mouth shapes loaded successfully")
-                    self.logger.info("✅ Smart mouth shapes loaded successfully")
-                else:
-                    print("❌ SMART MOUTH: Failed to load mouth shapes")
-                    self.logger.error("❌ Smart mouth failed to load mouth shapes")
-                    self.smart_mouth_animator = None
-            except Exception as e:
-                print(f"❌ SMART MOUTH: Error loading mouth shapes: {e}")
-                self.logger.error(f"❌ Smart mouth error loading mouth shapes: {e}")
-                self.smart_mouth_animator = None
-                
-        except Exception as e:
-            print(f"❌ SMART MOUTH: Failed to initialize: {e}")
-            self.logger.warning(f"Smart mouth initialization failed: {e}")
-            self.smart_mouth_animator = None
-        
-        # Try to initialize simple morph animator second (guaranteed to work on Pi)
-        try:
-            print("🎭 DEBUG: Attempting to import simple morph animator...")
-            from src.simple_morph_animator import SimpleMorphAnimator
-            self.simple_morph_animator = SimpleMorphAnimator()
-            print("✅ SIMPLE MORPH: Simple morphing animation system initialized")
-            self.logger.info("✅ Simple morphing animation system initialized")
-            
-            # Load mouth shapes for simple morph system
-            try:
-                faces_dir = FACE_ASSETS_DIR
-                print(f"🎭 SIMPLE MORPH: Loading mouth shapes from {faces_dir}")
-                success = self.simple_morph_animator.load_mouth_shapes(faces_dir)
-                if success:
-                    print("✅ SIMPLE MORPH: Mouth shapes loaded successfully")
-                    self.logger.info("✅ Simple morph mouth shapes loaded successfully")
-                else:
-                    print("❌ SIMPLE MORPH: Failed to load mouth shapes")
-                    self.logger.error("❌ Simple morph failed to load mouth shapes")
-                    self.simple_morph_animator = None
-            except Exception as e:
-                print(f"❌ SIMPLE MORPH: Error loading mouth shapes: {e}")
-                self.logger.error(f"❌ Simple morph error loading mouth shapes: {e}")
-                self.simple_morph_animator = None
-                
-        except Exception as e:
-            print(f"❌ SIMPLE MORPH: Failed to initialize: {e}")
-            self.logger.warning(f"Simple morph initialization failed: {e}")
-            self.simple_morph_animator = None
-        
-        # Try to initialize OpenCV face animator second (proven solution for Pi)
-        try:
-            print("🎭 DEBUG: Attempting to import OpenCV face animator...")
-            from src.opencv_face_animator import OpenCVFaceAnimator
-            self.opencv_animator = OpenCVFaceAnimator()
-            print("✅ OPENCV: OpenCV face animation system initialized")
-            self.logger.info("✅ OpenCV face animation system initialized")
-            
-            # Load base face for OpenCV system
-            try:
-                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
-                if base_face_path.exists():
-                    print(f"🎭 OPENCV: Loading base face from {base_face_path}")
-                    success = self.opencv_animator.load_base_face(str(base_face_path))
-                    if success:
-                        print("✅ OPENCV: Base face loaded successfully")
-                        self.logger.info("✅ OpenCV base face loaded successfully")
-                    else:
-                        print("❌ OPENCV: Failed to load base face")
-                        self.logger.error("❌ OpenCV failed to load base face")
-                        self.opencv_animator = None
-                else:
-                    print(f"❌ OPENCV: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ OpenCV base face not found at {base_face_path}")
-                    self.opencv_animator = None
-            except Exception as e:
-                print(f"❌ OPENCV: Error loading base face: {e}")
-                self.logger.error(f"❌ OpenCV error loading base face: {e}")
-                self.opencv_animator = None
-                
-        except Exception as e:
-            print(f"❌ OPENCV: Failed to initialize: {e}")
-            self.logger.warning(f"OpenCV initialization failed: {e}")
-            self.opencv_animator = None
-        
-        # Try to initialize simple realistic face animator second (actually manipulates real face features, no complex dependencies)
-        try:
-            print("🎭 DEBUG: Attempting to import simple realistic face animator...")
-            from src.simple_realistic_animator import SimpleRealisticAnimator
-            self.simple_realistic_animator = SimpleRealisticAnimator()
-            print("✅ SIMPLE REALISTIC: Simple realistic face animation system initialized")
-            self.logger.info("✅ Simple realistic face animation system initialized")
-            
-            # Load base face for simple realistic system
-            try:
-                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
-                if base_face_path.exists():
-                    print(f"🎭 SIMPLE REALISTIC: Loading base face from {base_face_path}")
-                    success = self.simple_realistic_animator.load_base_face(str(base_face_path))
-                    if success:
-                        print("✅ SIMPLE REALISTIC: Base face loaded successfully")
-                        self.logger.info("✅ Simple realistic base face loaded successfully")
-                    else:
-                        print("❌ SIMPLE REALISTIC: Failed to load base face")
-                        self.logger.error("❌ Simple realistic failed to load base face")
-                        self.simple_realistic_animator = None
-                else:
-                    print(f"❌ SIMPLE REALISTIC: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ Simple realistic base face not found at {base_face_path}")
-                    self.simple_realistic_animator = None
-            except Exception as e:
-                print(f"❌ SIMPLE REALISTIC: Error loading base face: {e}")
-                self.logger.error(f"❌ Simple realistic error loading base face: {e}")
-                self.simple_realistic_animator = None
-                
-        except Exception as e:
-            print(f"❌ SIMPLE REALISTIC: Failed to initialize: {e}")
-            self.logger.warning(f"Simple realistic initialization failed: {e}")
-            self.simple_realistic_animator = None
-        
-        # Try to initialize realistic face animator second (actually manipulates real face features)
-        try:
-            print("🎭 DEBUG: Attempting to import realistic face animator...")
-            from src.realistic_face_animator import RealisticFaceAnimator
-            self.realistic_animator = RealisticFaceAnimator()
-            print("✅ REALISTIC: Realistic face animation system initialized")
-            self.logger.info("✅ Realistic face animation system initialized")
-            
-            # Load base face for realistic system
-            try:
-                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
-                if base_face_path.exists():
-                    print(f"🎭 REALISTIC: Loading base face from {base_face_path}")
-                    success = self.realistic_animator.load_base_face(str(base_face_path))
-                    if success:
-                        print("✅ REALISTIC: Base face loaded successfully")
-                        self.logger.info("✅ Realistic base face loaded successfully")
-                    else:
-                        print("❌ REALISTIC: Failed to load base face")
-                        self.logger.error("❌ Realistic failed to load base face")
-                        self.realistic_animator = None
-                else:
-                    print(f"❌ REALISTIC: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ Realistic base face not found at {base_face_path}")
-                    self.realistic_animator = None
-            except Exception as e:
-                print(f"❌ REALISTIC: Error loading base face: {e}")
-                self.logger.error(f"❌ Realistic error loading base face: {e}")
-                self.realistic_animator = None
-                
-        except Exception as e:
-            print(f"❌ REALISTIC: Failed to initialize: {e}")
-            self.logger.warning(f"Realistic initialization failed: {e}")
-            self.realistic_animator = None
-        
-        # Try to initialize Live2D animator second (Pi-friendly, no heavy dependencies)
-        try:
-            print("🎭 DEBUG: Attempting to import Live2D animator...")
-            from src.live2d_animator import Live2DAnimator
-            self.live2d_animator = Live2DAnimator()
-            print("✅ LIVE2D: Live2D-style animation system initialized")
-            self.logger.info("✅ Live2D animation system initialized")
-            
-            # Load base face for Live2D system
-            try:
-                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
-                if base_face_path.exists():
-                    print(f"🎭 LIVE2D: Loading base face from {base_face_path}")
-                    success = self.live2d_animator.load_base_face(str(base_face_path))
-                    if success:
-                        print("✅ LIVE2D: Base face loaded successfully")
-                        self.logger.info("✅ Live2D base face loaded successfully")
-                    else:
-                        print("❌ LIVE2D: Failed to load base face")
-                        self.logger.error("❌ Live2D failed to load base face")
-                        self.live2d_animator = None
-                else:
-                    print(f"❌ LIVE2D: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ Live2D base face not found at {base_face_path}")
-                    self.live2d_animator = None
-            except Exception as e:
-                print(f"❌ LIVE2D: Error loading base face: {e}")
-                self.logger.error(f"❌ Live2D error loading base face: {e}")
-                self.live2d_animator = None
-                
-        except Exception as e:
-            print(f"❌ LIVE2D: Failed to initialize: {e}")
-            self.logger.warning(f"Live2D initialization failed: {e}")
-            self.live2d_animator = None
-        
-        # Try to initialize SadTalker second (if available)
-        try:
-            print("🎭 DEBUG: Attempting to import SadTalker animator...")
-            from src.sadtalker_animator import SadTalkerAnimator
-            self.sadtalker_animator = SadTalkerAnimator()
-            print("✅ SADTALKER: AI talking face system initialized")
-            self.logger.info("✅ SadTalker AI system initialized")
-        except Exception as e:
-            print(f"❌ SADTALKER: Failed to initialize: {e}")
-            self.logger.warning(f"SadTalker initialization failed: {e}")
-            self.sadtalker_animator = None
-        
-        # Try to initialize Wav2Lip AI second (high quality)
-        if USE_WAV2LIP and WAV2LIP_AVAILABLE:
-            try:
-                print("🤖 DEBUG: Attempting to initialize Wav2Lip AI...")
-                self.wav2lip_animator = get_wav2lip_animator()
-                print("✅ WAV2LIP: AI lip sync system initialized")
-                self.logger.info("✅ Wav2Lip AI system initialized")
-            except Exception as e:
-                print(f"⚠️ WAV2LIP: Failed to initialize: {e}")
-                self.logger.warning(f"Wav2Lip initialization failed: {e}")
-                self.wav2lip_animator = None
-        
-        # Initialize clean dlib animator (Local, reliable solution)
-        try:
-            print("🔍 DEBUG: Attempting to import clean dlib animator...")
-            from src.clean_dlib_animator import CleanDlibAnimator
-            print("✅ DEBUG: Clean dlib import successful, creating instance...")
-            self.clean_dlib_animator = CleanDlibAnimator()
-            print("✅ CLEAN DLIB: Clean dlib animator initialized")
-            self.logger.info("✅ Clean dlib animator initialized")
-            
-            # Load base face for clean dlib system
-            try:
-                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
-                if base_face_path.exists():
-                    print(f"🎭 CLEAN DLIB: Loading base face from {base_face_path}")
-                    success = self.clean_dlib_animator.load_base_face(str(base_face_path))
-                    if success:
-                        print("✅ CLEAN DLIB: Base face loaded successfully")
-                        self.logger.info("✅ Clean dlib base face loaded successfully")
-                    else:
-                        print("❌ CLEAN DLIB: Failed to load base face")
-                        self.logger.error("❌ Clean dlib failed to load base face")
-                        self.clean_dlib_animator = None
-                else:
-                    print(f"❌ CLEAN DLIB: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ Clean dlib base face not found at {base_face_path}")
-                    self.clean_dlib_animator = None
-            except Exception as e:
-                print(f"❌ CLEAN DLIB: Error loading base face: {e}")
-                self.logger.error(f"❌ Clean dlib error loading base face: {e}")
-                self.clean_dlib_animator = None
-                
-        except ImportError as ie:
-            print(f"⚠️ CLEAN DLIB: Import failed - {ie}")
-            print("⚠️ CLEAN DLIB: Install with: pip3 install dlib opencv-python")
-            self.logger.warning(f"Clean dlib import failed: {ie}")
-            self.clean_dlib_animator = None
-        except Exception as e:
-            print(f"⚠️ CLEAN DLIB: Failed to initialize clean dlib system: {e}")
-            self.logger.warning(f"Could not initialize clean dlib system: {e}")
-            self.clean_dlib_animator = None
-        
-        # Fallback to simple lip-sync system
-        if not hasattr(self, 'clean_dlib_animator') or not self.clean_dlib_animator:
-            try:
-                print("🔍 DEBUG: Attempting to import simple lip-sync system...")
-                from src.simple_lip_sync import SimpleLipSync
-                print("✅ DEBUG: Simple lip-sync import successful, creating instance...")
-                self.simple_lip_sync = SimpleLipSync(display_manager)
-                print("✅ SIMPLE: Simple lip-sync system initialized")
-                self.logger.info("✅ Simple lip-sync system initialized")
-                
-                # Load base face for simple system
-                try:
-                    base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
-                    if base_face_path.exists():
-                        print(f"🎭 SIMPLE: Loading base face from {base_face_path}")
-                        success = self.simple_lip_sync.load_base_face(str(base_face_path))
-                        if success:
-                            print("✅ SIMPLE: Base face loaded successfully")
-                            self.logger.info("✅ Simple base face loaded successfully")
-                        else:
-                            print("❌ SIMPLE: Failed to load base face")
-                            self.logger.error("❌ Simple failed to load base face")
-                            self.simple_lip_sync = None
-                    else:
-                        print(f"❌ SIMPLE: Base face not found at {base_face_path}")
-                        self.logger.error(f"❌ Simple base face not found at {base_face_path}")
-                        self.simple_lip_sync = None
-                except Exception as e:
-                    print(f"❌ SIMPLE: Error loading base face: {e}")
-                    self.logger.error(f"❌ Simple error loading base face: {e}")
-                    self.simple_lip_sync = None
-                    
-            except ImportError as ie:
-                print(f"⚠️ SIMPLE: Import failed - {ie}")
-                self.logger.warning(f"Simple lip-sync import failed: {ie}")
-                self.simple_lip_sync = None
-            except Exception as e:
-                print(f"⚠️ SIMPLE: Failed to initialize simple system: {e}")
-                self.logger.warning(f"Could not initialize simple system: {e}")
-                self.simple_lip_sync = None
-        
-        # Fallback to dlib facial landmarks if other systems not available
-        if not hasattr(self, 'clean_dlib_animator') or not self.clean_dlib_animator:
-            if not hasattr(self, 'simple_lip_sync') or not self.simple_lip_sync:
-                try:
-                    print("🔍 DEBUG: Attempting to import dlib system...")
-                    from src.dlib_face_animator import DlibFaceAnimator
-                    print("✅ DEBUG: dlib import successful, creating instance...")
-                    self.dlib_face_animator = DlibFaceAnimator()
-                    print("✅ DLIB: Facial landmark system initialized")
-                    self.logger.info("✅ dlib facial landmark system initialized")
-                    
-                    # Load base face for dlib system
-                    base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
-                    if base_face_path.exists():
-                        print(f"🎭 DLIB: Loading base face from {base_face_path}")
-                        success = self.dlib_face_animator.load_base_face(str(base_face_path))
-                        if success:
-                            print("✅ DLIB: Base face loaded with facial landmarks detected")
-                            self.logger.info("✅ dlib base face loaded successfully")
-                        else:
-                            print("❌ DLIB: Failed to load base face")
-                            self.logger.error("❌ dlib failed to load base face")
-                            self.dlib_face_animator = None
-                    else:
-                        print(f"❌ DLIB: Base face not found at {base_face_path}")
-                        self.logger.error(f"❌ dlib base face not found at {base_face_path}")
-                        self.dlib_face_animator = None
-                        
-                except ImportError as ie:
-                    print(f"⚠️ DLIB: Import failed - {ie}")
-                    print("⚠️ DLIB: Likely missing dlib package - run: pip install dlib")
-                    self.logger.warning(f"dlib import failed: {ie}")
-                    self.dlib_face_animator = None
-                except Exception as e:
-                    print(f"⚠️ DLIB: Failed to initialize dlib system: {e}")
-                    print(f"⚠️ DLIB: Error type: {type(e).__name__}")
-                    import traceback
-                    print(f"⚠️ DLIB: Traceback: {traceback.format_exc()}")
-                    self.logger.warning(f"Could not initialize dlib system: {e}")
-                    self.dlib_face_animator = None
-        
-        # Final fallback to audio-driven system
-        if not self.wav2lip_animator and not self.dlib_face_animator:
-            if USE_AUDIO_DRIVEN_FACE:
-                try:
-                    from src.audio_driven_face import AudioDrivenFace
-                    self.audio_driven_face = AudioDrivenFace()
-                    print("✅ FALLBACK: Audio-driven face system initialized")
-                    self.logger.info("✅ Audio-driven face system initialized")
-                except Exception as e:
-                    print(f"⚠️ FALLBACK: Audio-driven initialization failed: {e}")
-                    self.logger.warning(f"Audio-driven face initialization failed: {e}")
+            print(f"❌ CLEAN MOUTH: Failed to initialize: {e}")
+            self.logger.warning(f"Clean mouth initialization failed: {e}")
+            self.clean_mouth_animator = None
         
         # Initialize face_images attribute
         self.face_images = {}
@@ -468,8 +64,8 @@ class FaceAnimator:
         # Load face assets
         self._load_face_assets()
         
-        print(f"🎬 ANIMATOR: Animation system ready - wav2lip: {self.wav2lip_animator is not None}, dlib: {self.dlib_face_animator is not None}, audio-driven: {self.audio_driven_face is not None}")
-        self.logger.info(f"Face animator initialized with systems - wav2lip: {self.wav2lip_animator is not None}, dlib: {self.dlib_face_animator is not None}, audio-driven: {self.audio_driven_face is not None}")
+        print(f"🎬 ANIMATOR: Animation system ready - clean mouth: {self.clean_mouth_animator is not None}")
+        self.logger.info(f"Face animator initialized with clean mouth system: {self.clean_mouth_animator is not None}")
         
         # Animation timing
         self.animation_start_time = 0
@@ -480,239 +76,34 @@ class FaceAnimator:
         
         # Current face for smooth morphing
         self._current_face = None
-        
-        # Initialize real-time face manipulator if available
-        self.realtime_manipulator = None
-        if USE_REALTIME_FACE_MANIPULATION and REALTIME_AVAILABLE:
-            try:
-                self.realtime_manipulator = RealtimeFaceManipulator()
-                # Load base face for manipulation
-                base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
-                if base_face_path.exists():
-                    success = self.realtime_manipulator.load_base_face(str(base_face_path))
-                    if success:
-                        self.logger.info("Real-time face manipulation enabled")
-                    else:
-                        self.logger.warning("Failed to load base face for manipulation, falling back to morphing")
-                        self.realtime_manipulator = None
-                else:
-                    self.logger.warning("No base face found for manipulation, falling back to morphing")
-                    self.realtime_manipulator = None
-            except Exception as e:
-                self.logger.warning(f"Real-time face manipulation setup failed: {e}, falling back to morphing")
-                self.realtime_manipulator = None
-        
-        # Initialize audio-driven face system if available (highest priority)
-        self.audio_driven_face = None
-        self.logger.info(f"🔍 Checking audio-driven face: USE_AUDIO_DRIVEN_FACE={USE_AUDIO_DRIVEN_FACE}, AVAILABLE={AUDIO_DRIVEN_AVAILABLE}")
-        
-        if USE_AUDIO_DRIVEN_FACE and AUDIO_DRIVEN_AVAILABLE:
-            try:
-                print("🚀 DEBUG: About to create AudioDrivenFace instance...")
-                self.logger.info("🚀 Initializing AudioDrivenFace...")
-                from .audio_driven_face import AudioDrivenFace
-                self.audio_driven_face = AudioDrivenFace()
-                print("✅ DEBUG: AudioDrivenFace instance created!")
-                self.logger.info("✅ AudioDrivenFace created successfully")
-                
-                # Load base face for manipulation
-                base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
-                self.logger.info(f"📁 Looking for base face at: {base_face_path}")
-                
-                if base_face_path.exists():
-                    print("✅ DEBUG: Base face file found, about to load...")
-                    self.logger.info("✅ Base face file found, loading...")
-                    success = self.audio_driven_face.load_base_face(str(base_face_path))
-                    print("✅ DEBUG: Base face loading completed!")
-                    if success:
-                        self.logger.info("🎭 Audio-driven deepfake-like face manipulation enabled!")
-                    else:
-                        self.logger.error("❌ Failed to load base face for audio-driven manipulation")
-                        self.audio_driven_face = None
-                else:
-                    self.logger.error(f"❌ No base face found at {base_face_path}")
-                    self.audio_driven_face = None
-            except Exception as e:
-                self.logger.error(f"❌ Audio-driven face setup failed: {e}")
-                self.logger.error(f"Exception type: {type(e).__name__}")
-                import traceback
-                self.logger.error(f"Full traceback: {traceback.format_exc()}")
-                self.audio_driven_face = None
-        else:
-            self.logger.warning("⚠️  Audio-driven face not available - will use fallback animation")
-        
-        # Create base face if no assets found
-        print("🔍 DEBUG: Checking if face assets need to be created...")
-        if not self.face_images:
-            print("⚠️ DEBUG: No face assets found, creating default...")
-            self._create_default_face()
-        
-        # Initialize current face
-        print("🎭 DEBUG: Setting up current face...")
-        self._current_face = self.face_images.get('mouth_closed', self.face_images.get('base'))
-        print("✅ DEBUG: Current face initialized!")
-        
-        animation_type = "audio-driven deepfake-like" if self.audio_driven_face else \
-                         "real-time manipulation" if self.realtime_manipulator else \
-                         "enhanced morphing"
-        print(f"🎬 DEBUG: About to finish FaceAnimator init with: {animation_type}")
-        self.logger.info(f"🎬 Face Animator initialized with: {animation_type}")
-        print("🎯 DEBUG: FaceAnimator.__init__() completed successfully!")
     
     def _load_face_assets(self):
         """Load face images for animation"""
         try:
-            # Load base face for dlib system
-            base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+            faces_dir = Path(FACE_ASSETS_DIR)
+            if not faces_dir.exists():
+                self.logger.warning(f"Face assets directory not found: {faces_dir}")
+                return
             
-            if self.dlib_face_animator and base_face_path.exists():
-                print(f"🎭 DLIB: Loading base face from {base_face_path}")
-                if self.dlib_face_animator.load_base_face(str(base_face_path)):
-                    print("✅ DLIB: Base face loaded with facial landmarks detected")
-                    self.current_face = self.dlib_face_animator.base_face.copy()
-                    return
+            # Load face images
+            for face_file in faces_dir.glob("*.png"):
+                face_name = face_file.stem
+                face_image = cv2.imread(str(face_file))
+                if face_image is not None:
+                    self.face_images[face_name] = face_image
+                    self.logger.info(f"Loaded face image: {face_name}")
                 else:
-                    print("❌ DLIB: Failed to load base face, falling back to audio-driven")
-                    self.dlib_face_animator = None
+                    self.logger.warning(f"Failed to load face image: {face_file}")
             
-            # Fallback to audio-driven face system
-            if self.audio_driven_face and base_face_path.exists():
-                print(f"🎭 AUDIO-DRIVEN: Loading base face from {base_face_path}")
-                if self.audio_driven_face.load_base_face(str(base_face_path)):
-                    print("✅ AUDIO-DRIVEN: Base face loaded")
-                    self.current_face = self.audio_driven_face.base_face.copy()
-                    return
-            
-            # Final fallback - load traditional face images
-            print("⚠️ FALLBACK: Loading traditional face images")
-            self.face_images = {}
-            for face_type in ['base', 'mouth_closed', 'mouth_open', 'mouth_wide']:
-                face_path = Path(FACE_ASSETS_DIR) / f"{face_type}.jpg"
-                if face_path.exists():
-                    face_image = cv2.imread(str(face_path))
-                    if face_image is not None:
-                        self.face_images[face_type] = face_image
-                        print(f"✅ TRADITIONAL: Loaded {face_type}")
-            
-            # Set current face from traditional images
-            if hasattr(self, 'face_images') and self.face_images:
-                self.current_face = self.face_images.get('mouth_closed', self.face_images.get('base'))
-                print(f"✅ TRADITIONAL: Using {len(self.face_images)} face images")
+            # Set current face
+            if self.face_images:
+                self.current_face = self.face_images.get('mouth_closed', list(self.face_images.values())[0])
+                self.logger.info(f"Loaded {len(self.face_images)} face images")
             else:
-                print("❌ ERROR: No face assets could be loaded!")
+                self.logger.warning("No face images loaded")
                 
         except Exception as e:
-            self.logger.error(f"Error loading face assets: {e}")
-            print(f"❌ ERROR: Failed to load face assets: {e}")
-    
-    def _create_default_face(self):
-        """Create a more realistic default mystical face"""
-        try:
-            # Face dimensions 
-            width, height = 400, 500
-            
-            # Create face with better colors
-            face = np.zeros((height, width, 3), dtype=np.uint8)
-            
-            # Mystical background glow
-            center = (width // 2, height // 2)
-            for i in range(5):
-                glow_radius = 180 - i * 30
-                glow_intensity = 20 - i * 3
-                cv2.circle(face, center, glow_radius, (glow_intensity, glow_intensity//2, glow_intensity//3), -1)
-            
-            # Face shape (more realistic oval)
-            face_color = (180, 150, 120)  # Warmer skin tone
-            cv2.ellipse(face, (width//2, height//2 + 20), (120, 160), 0, 0, 360, face_color, -1)
-            
-            # Cheekbones and face contour
-            cheek_color = (160, 130, 100)
-            cv2.ellipse(face, (width//2 - 60, height//2), (40, 80), 15, 0, 360, cheek_color, -1)
-            cv2.ellipse(face, (width//2 + 60, height//2), (40, 80), -15, 0, 360, cheek_color, -1)
-            
-            # Eyes (more mystical)
-            eye_color = (80, 40, 120)  # Purple-ish mystical eyes
-            pupil_color = (200, 180, 255)  # Glowing pupils
-            
-            # Left eye
-            cv2.ellipse(face, (width//2 - 40, height//2 - 30), (25, 15), 0, 0, 360, eye_color, -1)
-            cv2.circle(face, (width//2 - 40, height//2 - 30), 8, pupil_color, -1)
-            cv2.circle(face, (width//2 - 40, height//2 - 30), 3, (255, 255, 255), -1)
-            
-            # Right eye  
-            cv2.ellipse(face, (width//2 + 40, height//2 - 30), (25, 15), 0, 0, 360, eye_color, -1)
-            cv2.circle(face, (width//2 + 40, height//2 - 30), 8, pupil_color, -1)
-            cv2.circle(face, (width//2 + 40, height//2 - 30), 3, (255, 255, 255), -1)
-            
-            # Eyebrows
-            brow_color = (100, 80, 60)
-            cv2.ellipse(face, (width//2 - 40, height//2 - 50), (30, 8), 15, 0, 180, brow_color, -1)
-            cv2.ellipse(face, (width//2 + 40, height//2 - 50), (30, 8), 165, 0, 180, brow_color, -1)
-            
-            # Nose (more refined)
-            nose_color = (160, 130, 100)
-            nose_points = np.array([
-                [width//2, height//2 - 10],
-                [width//2 - 8, height//2 + 10],
-                [width//2 + 8, height//2 + 10]
-            ], np.int32)
-            cv2.fillPoly(face, [nose_points], nose_color)
-            
-            # Create different mouth shapes
-            self._create_mouth_shapes(face, width, height)
-            
-            # Store base face
-            self.face_images['base'] = face.copy()
-            
-            self.logger.info("Created improved mystical default face")
-            
-        except Exception as e:
-            self.logger.error(f"Error creating default face: {e}")
-    
-    def _create_mouth_shapes(self, base_face: np.ndarray, width: int, height: int):
-        """Create different mouth shapes for lip sync"""
-        mouth_center_x = width // 2
-        mouth_center_y = height // 2 + 60
-        
-        # Define mouth shapes
-        mouth_shapes = {
-            'mouth_closed': {
-                'points': [(mouth_center_x - 15, mouth_center_y), 
-                          (mouth_center_x + 15, mouth_center_y)],
-                'thickness': 3
-            },
-            'mouth_open': {
-                'ellipse': ((mouth_center_x, mouth_center_y), (20, 30), 0),
-                'color': (50, 50, 50)
-            },
-            'mouth_wide': {
-                'ellipse': ((mouth_center_x, mouth_center_y), (35, 15), 0),
-                'color': (50, 50, 50)
-            },
-            'mouth_round': {
-                'ellipse': ((mouth_center_x, mouth_center_y), (15, 15), 0),
-                'color': (50, 50, 50)
-            },
-            'mouth_narrow': {
-                'ellipse': ((mouth_center_x, mouth_center_y), (25, 10), 0),
-                'color': (50, 50, 50)
-            }
-        }
-        
-        # Generate face images with different mouth shapes
-        for shape_name, shape_data in mouth_shapes.items():
-            face_copy = base_face.copy()
-            
-            if 'ellipse' in shape_data:
-                # Draw oval mouth
-                cv2.ellipse(face_copy, shape_data['ellipse'][0], shape_data['ellipse'][1], 
-                           shape_data['ellipse'][2], 0, 360, shape_data['color'], -1)
-            elif 'points' in shape_data:
-                # Draw line mouth
-                cv2.line(face_copy, shape_data['points'][0], shape_data['points'][1], 
-                        (100, 50, 50), shape_data['thickness'])
-            
-            self.face_images[shape_name] = face_copy
+            self.logger.error(f"❌ ERROR: Failed to load face assets: {e}")
     
     async def animate_speaking(self, phonemes: List[Dict]):
         """Animate face according to phoneme timing for lip sync"""
@@ -750,103 +141,27 @@ class FaceAnimator:
             self.is_speaking = False
     
     async def animate_speaking_with_audio(self, audio_data: bytes, phonemes: List[dict]):
-        """Animate speaking using best available system: Wav2Lip AI > dlib > audio-driven > phonemes"""
+        """Animate speaking using clean mouth animator"""
         try:
             self.logger.info("animate_speaking_with_audio called")
             
-            # Try Wav2Lip AI first (highest quality)
-            if self.wav2lip_animator:
-                self.logger.info(f"Using Wav2Lip AI with {len(audio_data)} bytes of audio")
-                await self._animate_with_wav2lip(audio_data, phonemes)
+            # Use clean mouth animator if available
+            if self.clean_mouth_animator:
+                await self._animate_with_clean_mouth(audio_data, phonemes)
                 return
             
-            # Fallback to dlib system
-            elif self.dlib_face_animator:
-                self.logger.info(f"Using dlib system with {len(audio_data)} bytes of audio")
-                await self._animate_with_dlib(audio_data, phonemes)
-                return
-                
-            # Fallback to audio-driven system
-            elif self.audio_driven_face:
-                self.logger.info(f"Using audio-driven face manipulation with {len(audio_data)} bytes of audio")
-                await self._animate_with_audio_driven(audio_data, phonemes)
-                return
-            
-            # Final fallback to phoneme animation
+            # Fallback to simple phoneme animation
             else:
-                self.logger.warning("No advanced animation systems available, falling back to phoneme animation")
+                self.logger.warning("No clean mouth animator available, falling back to phoneme animation")
                 await self.animate_speaking(phonemes)
                 return
         except Exception as e:
             self.logger.error(f"Speaking animation error: {e}")
             self.is_speaking = False
     
-    async def _animate_with_wav2lip(self, audio_data: bytes, phonemes: List[dict]):
-        """Animate using Wav2Lip AI"""
+    async def _animate_with_clean_mouth(self, audio_data: bytes, phonemes: List[dict]):
+        """Animate using clean mouth animator"""
         try:
-            # Initialize Wav2Lip models if needed
-            if not await self.wav2lip_animator.initialize():
-                self.logger.error("Failed to initialize Wav2Lip models")
-                await self._animate_with_dlib(audio_data, phonemes)
-                return
-            
-            # Load base face if not already loaded
-            base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
-            if not self.wav2lip_animator.load_base_face(str(base_face_path)):
-                self.logger.error("Failed to load base face for Wav2Lip")
-                await self._animate_with_dlib(audio_data, phonemes)
-                return
-            
-            self.is_speaking = True
-            self.current_state = "speaking"
-            
-            # Calculate frame timing
-            total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
-            frame_rate = 25  # Wav2Lip works well at 25 FPS
-            frame_duration = 1.0 / frame_rate
-            total_frames = int(total_duration * frame_rate)
-            
-            self.logger.info(f"Wav2Lip animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
-            
-            # Convert audio to numpy array
-            import numpy as np
-            audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
-            samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
-            
-            # Animation loop
-            for frame in range(total_frames):
-                start_idx = frame * samples_per_frame
-                end_idx = min(start_idx + samples_per_frame, len(audio_array))
-                audio_chunk = audio_array[start_idx:end_idx]
-                
-                # Generate lip-synced frame
-                lip_sync_frame = await self.wav2lip_animator.generate_lip_sync_frame(audio_chunk)
-                
-                if lip_sync_frame is not None:
-                    # Clear screen and display
-                    self.display_manager.clear_screen()
-                    self.display_manager.display_image(lip_sync_frame, (0, 0))
-                    self.display_manager.update_display()
-                    
-                    print(f"✅ WAV2LIP: Frame {frame} displayed successfully")
-                
-                # Control frame rate
-                await asyncio.sleep(frame_duration)
-                
-        except Exception as e:
-            self.logger.error(f"Wav2Lip animation error: {e}")
-            # Fallback to dlib
-            await self._animate_with_dlib(audio_data, phonemes)
-        finally:
-            self.is_speaking = False
-    
-    async def _animate_with_dlib(self, audio_data: bytes, phonemes: List[dict]):
-        """Animate using dlib facial landmarks"""
-        try:
-            if not self.dlib_face_animator:
-                await self._animate_with_audio_driven(audio_data, phonemes)
-                return
-                
             self.is_speaking = True
             self.current_state = "speaking"
             
@@ -856,110 +171,51 @@ class FaceAnimator:
             frame_duration = 1.0 / frame_rate
             total_frames = int(total_duration * frame_rate)
             
-            self.logger.info(f"dlib animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
+            self.logger.info(f"Clean mouth animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
             
             # Convert full audio once
-            audio_array = self.dlib_face_animator._bytes_to_audio_array(audio_data)
+            audio_array = self.clean_mouth_animator._bytes_to_audio_array(audio_data)
             if len(audio_array) == 0:
                 self.logger.error("Failed to convert audio, falling back to phoneme animation")
                 await self.animate_speaking(phonemes)
                 return
             
-            # Calculate samples per frame with minimum size for analysis
-            raw_samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
-            samples_per_frame = max(1024, raw_samples_per_frame)  # Ensure minimum 1024 samples for better frequency analysis
+            # Calculate samples per frame
+            samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
             
-            print(f"🎭 CHUNK SIZE FIX: raw_samples_per_frame={raw_samples_per_frame}, fixed_samples_per_frame={samples_per_frame}")
-            print(f"🎭 AUDIO ANALYSIS: total_audio_samples={len(audio_array)}, total_frames={total_frames}")
-            print(f"🎭 CHUNKING MATH: samples_per_frame={samples_per_frame}, total_samples_needed={samples_per_frame * total_frames}")
-            print(f"🎭 CHUNKING CHECK: Will run out of audio at frame {len(audio_array) // samples_per_frame}")
-            self.logger.info(f"Processing {samples_per_frame} samples per frame (minimum 1024 for analysis)")
-            
-            # Real-time animation loop using dlib
+            # Animation loop
             for frame in range(total_frames):
-                # Remove the incorrect check - frame should never exceed total_frames
-                # The original check was comparing frame number to audio sample count!
-                
                 # Extract audio chunk for this frame
                 start_idx = frame * samples_per_frame
                 end_idx = min(start_idx + samples_per_frame, len(audio_array))
                 audio_chunk = audio_array[start_idx:end_idx]
                 
-                # CRITICAL FIX: Don't break if audio chunk is empty, just use the last available audio
+                # Handle empty audio chunks
                 if len(audio_chunk) == 0:
                     print(f"⚠️ AUDIO CHUNK EMPTY: Frame {frame}, using last available audio")
-                    # Use the last available audio chunk instead of breaking
                     if frame > 0:
                         start_idx = max(0, len(audio_array) - samples_per_frame)
                         audio_chunk = audio_array[start_idx:]
                     else:
-                        # If first frame is empty, use a small chunk from the beginning
                         audio_chunk = audio_array[:min(1024, len(audio_array))]
                 
-                # FIX: Don't stop animation early - let it run for the full duration
-                # The audio chunking logic is wrong, so we'll let it run for all frames
-                # audio_duration_seconds = len(audio_array) / 22050  # 22050 Hz sample rate
-                # current_time_seconds = frame / 15.0  # 15 FPS
-                # 
-                # if current_time_seconds > audio_duration_seconds + 0.5:  # Stop 0.5 seconds after audio ends
-                #     print(f"⏹️ AUDIO ENDED: Stopping animation at frame {frame} (audio ended at {audio_duration_seconds:.2f}s, current time {current_time_seconds:.2f}s)")
-                #     break
-            
-                # Generate face using dlib system
-                face = self.dlib_face_animator.generate_face_for_audio_chunk(audio_chunk)
-            
+                # Generate face using clean mouth system
+                face = self.clean_mouth_animator.generate_face_for_audio_chunk(audio_chunk)
+                
                 # Debug output every 5 frames
                 if frame % 5 == 0:
                     print(f"🎭 ANIMATION DEBUG: Frame {frame}, audio chunk: {len(audio_chunk)} samples, face shape: {face.shape}")
-            
-                # 🔍 DISPLAY DEBUG: Show the face on screen using existing logic
+                
+                # Display the face
                 try:
                     print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display face...")
                     
-                    # 🔧 MOUTH-FOCUSED DISPLAY: Crop around mouth then scale to ensure visibility
-                    # Original face: (1536, 1024, 3), mouth at (512, 1152)
-                    import cv2
-                    
-                    # Crop around the face area - use image center instead of invalid mouth position
-                    face_center_x = face.shape[1] // 2  # Center of image width
-                    face_center_y = face.shape[0] // 2  # Center of image height
-                    
-                    # Define crop area large enough to show the full face
-                    crop_width = min(1400, face.shape[1])   # Nearly full width
-                    crop_height = min(1000, face.shape[0])  # Nearly full height
-                    
-                    # Calculate crop bounds
-                    x1 = max(0, face_center_x - crop_width // 2)
-                    x2 = min(face.shape[1], x1 + crop_width)
-                    y1 = max(0, face_center_y - crop_height // 2)  # Center on face
-                    y2 = min(face.shape[0], y1 + crop_height)
-                    
-                    # Ensure we got the right dimensions
-                    if x2 - x1 < crop_width:
-                        x1 = max(0, x2 - crop_width)
-                    if y2 - y1 < crop_height:
-                        y1 = max(0, y2 - crop_height)
-                    
-                    # Crop the face
-                    cropped_face = face[y1:y2, x1:x2]
-                    
-                    # Scale to display size
+                    # Scale face to fit screen
                     target_height = 600
-                    aspect_ratio = cropped_face.shape[1] / cropped_face.shape[0]
+                    aspect_ratio = face.shape[1] / face.shape[0]
                     target_width = int(target_height * aspect_ratio)
                     
-                    scaled_face = cv2.resize(cropped_face, (target_width, target_height))
-                    
-                    # Debug crop info
-                    print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {cropped_face.shape} -> Scaled {scaled_face.shape}")
-                    
-                    # Calculate center positions for debugging
-                    face_center = (face.shape[1]//2, face.shape[0]//2)
-                    crop_center = (cropped_face.shape[1]//2, cropped_face.shape[0]//2)
-                    scaled_center = (scaled_face.shape[1]//2, scaled_face.shape[0]//2)
-                    
-                    print(f"📍 CENTER DEBUG: Face center {face_center} -> Crop {crop_center} -> Scaled {scaled_center}")
-                    print(f"👁️ VIEW DEBUG: Full face view centered at {scaled_center}")
+                    scaled_face = cv2.resize(face, (target_width, target_height))
                     
                     # Calculate screen position to center the face
                     screen_width, screen_height = self.display_manager.get_screen_size()
@@ -967,11 +223,11 @@ class FaceAnimator:
                     screen_center_y = (screen_height - target_height) // 2
                     screen_position = (screen_center_x, screen_center_y)
                     
-                    # Clear screen and display in one operation to avoid double flips
+                    # Clear screen and display
                     self.display_manager.clear_screen()
                     self.display_manager.display_image(scaled_face, screen_position)
                     
-                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Full face displayed and screen updated successfully")
+                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Face displayed successfully")
                     
                 except Exception as e:
                     print(f"❌ DISPLAY ERROR: Frame {frame} - {e}")
@@ -982,369 +238,31 @@ class FaceAnimator:
                 await asyncio.sleep(frame_duration)
                 
         except Exception as e:
-            self.logger.error(f"dlib animation error: {e}")
-            await self._animate_with_audio_driven(audio_data, phonemes)
+            self.logger.error(f"Clean mouth animation error: {e}")
+            await self.animate_speaking(phonemes)
         finally:
             self.is_speaking = False
     
-    async def _animate_with_audio_driven(self, audio_data: bytes, phonemes: List[dict]):
-        """Animate using original audio-driven system"""
-        try:
-            if not self.audio_driven_face:
-                await self.animate_speaking(phonemes)
-                return
-            
-            self.is_speaking = True
-            self.current_state = "speaking"
-            
-            # Calculate total duration and frame rate
-            total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
-            frame_rate = 15  # 15 FPS for smooth animation
-            frame_duration = 1.0 / frame_rate
-            total_frames = int(total_duration * frame_rate)
-            
-            self.logger.info(f"Real-time animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
-            
-            # Convert full audio once
-            audio_array = self.audio_driven_face._bytes_to_audio_array(audio_data)
-            if len(audio_array) == 0:
-                self.logger.error("Failed to convert audio, falling back to phoneme animation")
-                await self.animate_speaking(phonemes)
-                return
-            
-            # Calculate samples per frame with minimum size for analysis
-            raw_samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
-            samples_per_frame = max(1024, raw_samples_per_frame)  # Ensure minimum 1024 samples for better frequency analysis
-            
-            print(f"🎭 CHUNK SIZE FIX: raw_samples_per_frame={raw_samples_per_frame}, fixed_samples_per_frame={samples_per_frame}")
-            self.logger.info(f"Processing {samples_per_frame} samples per frame (minimum 1024 for analysis)")
-            
-            # Real-time animation loop
-            for frame in range(total_frames):
-                # Remove the incorrect check - frame should never exceed total_frames
-                # The original check was comparing frame number to audio sample count!
-                
-                # Extract audio chunk for this frame
-                start_idx = frame * samples_per_frame
-                end_idx = min(start_idx + samples_per_frame, len(audio_array))
-                audio_chunk = audio_array[start_idx:end_idx]
-                
-                # CRITICAL FIX: Don't break if audio chunk is empty, just use the last available audio
-                if len(audio_chunk) == 0:
-                    print(f"⚠️ AUDIO CHUNK EMPTY: Frame {frame}, using last available audio")
-                    # Use the last available audio chunk instead of breaking
-                    if frame > 0:
-                        start_idx = max(0, len(audio_array) - samples_per_frame)
-                        audio_chunk = audio_array[start_idx:]
-                    else:
-                        # If first frame is empty, use a small chunk from the beginning
-                        audio_chunk = audio_array[:min(1024, len(audio_array))]
-            
-                # Generate face for this chunk
-                face = self._generate_face_for_chunk(audio_chunk)
-            
-                # Debug output every 5 frames
-                if frame % 5 == 0:
-                    print(f"🎭 ANIMATION DEBUG: Frame {frame}, audio chunk: {len(audio_chunk)} samples, face shape: {face.shape}")
-            
-                # 🔍 DISPLAY DEBUG: Show the face on screen
-                try:
-                    print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display face...")
-                    
-                    # 🔧 MOUTH-FOCUSED DISPLAY: Crop around mouth then scale to ensure visibility
-                    # Original face: (1536, 1024, 3), mouth at (512, 1152)
-                    import cv2
-                    
-                    # Crop around the face area - use image center instead of invalid mouth position
-                    face_center_x = face.shape[1] // 2  # Center of image width
-                    face_center_y = face.shape[0] // 2  # Center of image height
-                    
-                    # Define crop area large enough to show the full face
-                    crop_width = min(1400, face.shape[1])   # Nearly full width
-                    crop_height = min(1000, face.shape[0])  # Nearly full height
-                    
-                    # Calculate crop bounds
-                    x1 = max(0, face_center_x - crop_width // 2)
-                    x2 = min(face.shape[1], x1 + crop_width)
-                    y1 = max(0, face_center_y - crop_height // 2)  # Center on face
-                    y2 = min(face.shape[0], y1 + crop_height)
-                    
-                    # Ensure we got the right dimensions
-                    if x2 - x1 < crop_width:
-                        x1 = max(0, x2 - crop_width)
-                    if y2 - y1 < crop_height:
-                        y1 = max(0, y2 - crop_height)
-                    
-                    # Crop the face to show full face area
-                    face_crop = face[y1:y2, x1:x2]
-                    
-                    # Scale the full-face crop to fit screen nicely
-                    target_height = 600  # Good viewing size for full face
-                    scale_factor = target_height / face_crop.shape[0]
-                    new_width = int(face_crop.shape[1] * scale_factor)
-                    new_height = int(face_crop.shape[0] * scale_factor)
-                    
-                    scaled_face = cv2.resize(face_crop, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
-                    
-                    # Calculate face center in the cropped view (no mouth overlay needed)
-                    face_center_in_crop_x = face_center_x - x1
-                    face_center_in_crop_y = face_center_y - y1
-                    scaled_center_x = int(face_center_in_crop_x * scale_factor)
-                    scaled_center_y = int(face_center_in_crop_y * scale_factor)
-                    
-                    print(f"🔧 CROP DEBUG: Original {face.shape} -> Cropped {face_crop.shape} -> Scaled {scaled_face.shape}")
-                    print(f"🎯 CENTER DEBUG: Face center ({face_center_x},{face_center_y}) -> Crop ({face_center_in_crop_x},{face_center_in_crop_y}) -> Scaled ({scaled_center_x},{scaled_center_y})")
-                    print(f"👁️ VIEW DEBUG: Full face view centered at ({scaled_center_x},{scaled_center_y})")
-                    
-                    # Clear screen and display the full face view centered
-                    self.display_manager.clear_screen()
-                    
-                    screen_width, screen_height = self.display_manager.get_screen_size()
-                    screen_center_x = (screen_width - new_width) // 2
-                    screen_center_y = (screen_height - new_height) // 2
-                    screen_position = (screen_center_x, screen_center_y)
-                    self.display_manager.display_image(scaled_face, screen_position)
-                    
-                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Full face displayed and screen updated successfully")
-                except Exception as e:
-                    print(f"❌ DISPLAY DEBUG: Frame {frame} - Display failed: {e}")
-                    import traceback
-                    print(f"❌ DISPLAY TRACEBACK: {traceback.format_exc()}")
-            
-                # Control frame rate (15 FPS)
-                await asyncio.sleep(1/15)
-            
-            # Return to idle
-            self.is_speaking = False
-            self.current_state = "idle"
-            
-        except Exception as e:
-            self.logger.error(f"Error in audio-driven speaking animation: {e}")
-            self.logger.error(f"Exception details: {type(e).__name__}: {str(e)}")
-            # Fallback to regular animation
-            await self.animate_speaking(phonemes)
-    
-    def _generate_face_for_chunk(self, audio_chunk: np.ndarray) -> np.ndarray:
-        """Generate face for a single audio chunk using best available system"""
-        try:
-            print(f"🎬 CHUNK DEBUG: _generate_face_for_chunk called with {len(audio_chunk)} samples")
-            
-            # Use the actual TTS audio chunk for animation
-            # This will make the mouth respond to the AI-generated speech
-            print(f"🎵 TTS AUDIO: Using AI-generated speech for animation")
-            
-            # Convert audio chunk to bytes for compatibility
-            audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
-            duration = len(audio_chunk) / 22050
-            
-            # Try direct mouth animator first (simple and effective)
-            if hasattr(self, 'direct_mouth_animator') and self.direct_mouth_animator:
-                print(f"🎭 DIRECT MOUTH: Using direct mouth animation")
-                face = self.direct_mouth_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"🎭 DIRECT MOUTH: Generated face with shape: {face.shape}")
-                return face
-            
-            # Try smart mouth animator second (actually responds to audio)
-            elif hasattr(self, 'smart_mouth_animator') and self.smart_mouth_animator:
-                print(f"🎭 SMART MOUTH: Using smart mouth animation")
-                face = self.smart_mouth_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"🎭 SMART MOUTH: Generated face with shape: {face.shape}")
-                return face
-            
-            # Try simple morph animator third (guaranteed to work on Pi)
-            elif hasattr(self, 'simple_morph_animator') and self.simple_morph_animator:
-                print(f"🎭 SIMPLE MORPH: Using simple morphing animation")
-                face = self.simple_morph_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"🎭 SIMPLE MORPH: Generated face with shape: {face.shape}")
-                return face
-            
-            # Try OpenCV face animator fourth (proven solution for Pi)
-            elif hasattr(self, 'opencv_animator') and self.opencv_animator:
-                print(f"🎭 OPENCV: Using OpenCV face animation")
-                face = self.opencv_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"🎭 OPENCV: Generated face with shape: {face.shape}")
-                return face
-            
-            # Try simple realistic face animator third (actually manipulates real face features, no complex dependencies)
-            elif hasattr(self, 'simple_realistic_animator') and self.simple_realistic_animator:
-                print(f"🎭 SIMPLE REALISTIC: Using simple realistic face animation")
-                face = self.simple_realistic_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"🎭 SIMPLE REALISTIC: Generated face with shape: {face.shape}")
-                return face
-            
-            # Try realistic face animator fourth (actually manipulates real face features)
-            elif hasattr(self, 'realistic_animator') and self.realistic_animator:
-                print(f"🎭 REALISTIC: Using realistic face animation")
-                face = self.realistic_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"🎭 REALISTIC: Generated face with shape: {face.shape}")
-                return face
-            
-            # Try Live2D animator second (Pi-friendly, smooth animations)
-            elif hasattr(self, 'live2d_animator') and self.live2d_animator:
-                print(f"🎭 LIVE2D: Using Live2D-style animation")
-                face = self.live2d_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"🎭 LIVE2D: Generated face with shape: {face.shape}")
-                return face
-            
-            # Try SadTalker second (if available)
-            elif hasattr(self, 'sadtalker_animator') and self.sadtalker_animator:
-                print(f"🎭 SADTALKER: Using AI talking face animation")
-                face = self.sadtalker_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"🎭 SADTALKER: Generated face with shape: {face.shape}")
-                return face
-            
-            # Try clean dlib animator third (Local, reliable solution)
-            elif hasattr(self, 'clean_dlib_animator') and self.clean_dlib_animator:
-                print(f"✅ CLEAN DLIB: Using clean dlib animation")
-                face = self.clean_dlib_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"✅ CLEAN DLIB: Generated face with shape: {face.shape}")
-                return face
-            
-            # Fallback to simple lip-sync system
-            elif hasattr(self, 'simple_lip_sync') and self.simple_lip_sync:
-                print(f"✅ SIMPLE: Using simple lip-sync animation")
-                face = self.simple_lip_sync.generate_face_for_audio_chunk(audio_chunk)
-                print(f"✅ SIMPLE: Generated face with shape: {face.shape}")
-                return face
-            
-            # Fallback to dlib system
-            elif self.dlib_face_animator:
-                print(f"✅ DLIB: Using facial landmark animation")
-                face = self.dlib_face_animator.generate_face_for_audio_chunk(audio_chunk)
-                print(f"✅ DLIB: Generated face with shape: {face.shape}")
-                return face
-            
-            # Fallback to audio-driven system  
-            elif self.audio_driven_face and hasattr(self.audio_driven_face, 'generate_face_from_audio'):
-                print(f"✅ AUDIO-DRIVEN: Using audio-driven animation")
-                face = self.audio_driven_face.generate_face_from_audio(audio_bytes, duration)
-                print(f"✅ AUDIO-DRIVEN: Generated face with shape: {face.shape}")
-                return face
-            
-            # Final fallback to static face
-            else:
-                print(f"⚠️ STATIC: Using static face (no animation systems available)")
-                return self.current_face.copy() if self.current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
-                
-        except Exception as e:
-            print(f"❌ CHUNK DEBUG: Error in _generate_face_for_chunk: {e}")
-            import traceback
-            print(f"❌ CHUNK TRACEBACK: {traceback.format_exc()}")
-            self.logger.error(f"Error generating face for chunk: {e}")
-            return self.current_face.copy() if self.current_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
-    
     async def _display_mouth_shape(self, mouth_shape: str, duration: float):
-        """Display mouth shape using real-time manipulation or smooth morphing"""
+        """Display mouth shape using simple morphing"""
         try:
-            if self.realtime_manipulator:
-                # Use real-time face manipulation (Option 4)
-                animated_face = await self.realtime_manipulator.animate_phoneme(mouth_shape, duration)
-                
-                # Display properly
+            target_image = self.face_images.get(mouth_shape, self.face_images.get('mouth_closed'))
+            
+            if target_image is not None:
+                # Simple morphing - just display the target shape
                 self.display_manager.clear_screen()
-                self.display_manager.display_face(animated_face)
+                self.display_manager.display_image(target_image, (0, 0))
                 self.display_manager.update_display()
                 
                 # Hold for duration
                 if duration > 0:
                     await asyncio.sleep(duration)
-            else:
-                # Fallback to smooth morphing (Option 1)
-                await self._display_mouth_shape_morphing(mouth_shape, duration)
-            
-        except Exception as e:
-            self.logger.error(f"Error displaying mouth shape {mouth_shape}: {e}")
-            # Emergency fallback
-            await self._display_mouth_shape_morphing(mouth_shape, duration)
-    
-    async def _display_mouth_shape_morphing(self, mouth_shape: str, duration: float):
-        """Enhanced smooth morphing method with dynamic timing"""
-        try:
-            target_image = self.face_images.get(mouth_shape, self.face_images.get('mouth_closed'))
-            
-            if target_image is not None:
-                # Get current face for smooth transition
-                current_image = getattr(self, '_current_face', self.face_images.get('mouth_closed'))
-                
-                # Enhanced morphing settings
-                if USE_ENHANCED_MORPHING:
-                    morph_steps = MORPH_STEPS
-                    # Dynamic timing - faster start, slower end for more natural feel
-                    morph_duration = min(0.15, duration / 2)  # Slightly longer for smoothness
-                else:
-                    morph_steps = 5
-                    morph_duration = min(0.1, duration / 2)
-                
-                step_time = morph_duration / morph_steps
-                
-                for step in range(morph_steps + 1):
-                    # Dynamic easing for more natural movement
-                    if USE_ENHANCED_MORPHING and MORPH_TIMING == "dynamic":
-                        # Ease-in-out curve (slow-fast-slow)
-                        t = step / morph_steps
-                        alpha = t * t * (3.0 - 2.0 * t)  # Smooth step function
-                    else:
-                        alpha = step / morph_steps  # Linear
-                    
-                    # Blend images for smooth transition
-                    blended = cv2.addWeighted(current_image, 1 - alpha, target_image, alpha, 0)
-                    
-                    # Add subtle brightness variation for more life-like effect
-                    if USE_ENHANCED_MORPHING:
-                        # Slight brightness pulse during speech
-                        brightness_factor = 1.0 + 0.05 * np.sin(step * 2)
-                        blended = cv2.convertScaleAbs(blended, alpha=brightness_factor, beta=0)
-                    
-                    # Display properly
-                    self.display_manager.clear_screen()
-                    self.display_manager.display_face(blended)
-                    self.display_manager.update_display()
-                    
-                    if step < morph_steps:
-                        await asyncio.sleep(step_time)
-                
-                # Hold the target shape for remaining duration
-                hold_time = duration - morph_duration
-                if hold_time > 0:
-                    # Add subtle animation during hold for more realistic effect
-                    if USE_ENHANCED_MORPHING and hold_time > 0.3:
-                        await self._animate_hold_phase(target_image, hold_time)
-                    else:
-                        await asyncio.sleep(hold_time)
                 
                 # Store current face for next transition
                 self._current_face = target_image.copy()
             
         except Exception as e:
-            self.logger.error(f"Error in enhanced morphing for {mouth_shape}: {e}")
-    
-    async def _animate_hold_phase(self, face_image: np.ndarray, duration: float):
-        """Add subtle animation during the hold phase for more realism"""
-        try:
-            steps = max(3, int(duration * 10))  # ~10 FPS during hold
-            step_time = duration / steps
-            
-            for i in range(steps):
-                # Subtle micro-movements
-                offset_x = int(2 * np.sin(i * 0.5))  # Small horizontal sway
-                offset_y = int(1 * np.cos(i * 0.3))  # Tiny vertical movement
-                
-                # Apply micro-movement
-                h, w = face_image.shape[:2]
-                M = np.float32([[1, 0, offset_x], [0, 1, offset_y]])
-                animated = cv2.warpAffine(face_image, M, (w, h), borderMode=cv2.BORDER_REFLECT)
-                
-                # Display properly
-                self.display_manager.clear_screen()
-                self.display_manager.display_face(animated)
-                self.display_manager.update_display()
-                
-                await asyncio.sleep(step_time)
-                
-        except Exception as e:
-            self.logger.error(f"Error in hold phase animation: {e}")
-            # Fallback to static hold
-            await asyncio.sleep(duration)
+            self.logger.error(f"Error displaying mouth shape {mouth_shape}: {e}")
     
     def start_idle_animation(self):
         """Start idle breathing animation"""
@@ -1494,22 +412,15 @@ class FaceAnimator:
             self.logger.error(f"Error scaling face: {e}")
             return face_image
     
-
-    
     def cleanup(self):
         """Cleanup animator resources"""
         try:
             self.is_speaking = False
             self.idle_animation_running = False
             
-            if self.realtime_manipulator:
-                self.realtime_manipulator.cleanup()
-            
-
+            if self.clean_mouth_animator:
+                self.clean_mouth_animator.cleanup()
             
             self.logger.info("Face Animator cleaned up")
         except Exception as e:
-            self.logger.error(f"Cleanup error: {e}")
-
-# Import random for idle animation
-import random 
+            self.logger.error(f"Cleanup error: {e}") 
