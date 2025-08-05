@@ -78,11 +78,11 @@ class SimpleFakeMouth:
         # More responsive to immediate audio changes
         if rms > 0.001:  # Lower threshold for more sensitivity
             # Quick response to audio - but with much better scaling
-            self.last_audio_intensity = rms * 0.5  # Much reduced amplification
+            self.last_audio_intensity = rms * 0.2  # Much much reduced amplification
             print(f"🎭 SIMPLE FAKE: Audio detected! RMS={rms:.4f}, intensity={self.last_audio_intensity:.3f}")
         else:
             # No audio = quickly close mouth
-            self.last_audio_intensity = max(0.0, self.last_audio_intensity - 0.2)  # Close faster
+            self.last_audio_intensity = max(0.0, self.last_audio_intensity - 0.3)  # Close even faster
             print(f"🎭 SIMPLE FAKE: Low audio, closing mouth, intensity={self.last_audio_intensity:.3f}")
         
         # No artificial variation - only respond to real audio
@@ -98,22 +98,22 @@ class SimpleFakeMouth:
         base_h = self.base_height
         
         # Much more dramatic response to audio - make it very obvious!
-        if intensity < 0.02:
+        if intensity < 0.05:
             # Closed mouth - make it tiny
             width = int(base_w * 0.1)    # Very very narrow
             height = int(base_h * 0.02)  # Very very thin
             state = "CLOSED"
-        elif intensity < 0.08:
+        elif intensity < 0.15:
             # Slightly open - make it clearly visible
             width = int(base_w * 0.4)
             height = int(base_h * 0.25)
             state = "SLIGHTLY OPEN"
-        elif intensity < 0.2:
+        elif intensity < 0.3:
             # Open - make it obvious
             width = int(base_w * 0.8)
             height = int(base_h * 0.6)
             state = "OPEN"
-        elif intensity < 0.4:
+        elif intensity < 0.5:
             # Wide open - make it very obvious
             width = int(base_w * 1.1)
             height = int(base_h * 0.9)
@@ -139,7 +139,7 @@ class SimpleFakeMouth:
             x, y = self.mouth_center
             
             # Draw ONE simple mouth oval that changes size and color
-            if intensity < 0.05:
+            if intensity < 0.1:  # Higher threshold for red color
                 # Closed mouth - tiny and red
                 mouth_color = (0, 0, 255)  # Bright red
                 cv2.ellipse(frame, (x, y), (width//2, height//2), 0, 0, 360, mouth_color, -1)
@@ -185,13 +185,13 @@ class SimpleFakeMouth:
         cv2.putText(frame, breathing_text, (10, 155), font, 0.5, (255, 255, 255), 1)
         
         # Add mouth state
-        if intensity < 0.02:
+        if intensity < 0.05:
             state_text = "State: Closed"
-        elif intensity < 0.08:
+        elif intensity < 0.15:
             state_text = "State: Slightly Open"
-        elif intensity < 0.2:
+        elif intensity < 0.3:
             state_text = "State: Open"
-        elif intensity < 0.4:
+        elif intensity < 0.5:
             state_text = "State: Wide Open"
         else:
             state_text = "State: Very Wide"
