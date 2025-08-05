@@ -73,7 +73,42 @@ class FaceAnimator:
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize Live2D animator first (Pi-friendly, no heavy dependencies)
+        # Try to initialize realistic face animator first (actually manipulates real face features)
+        try:
+            print("🎭 DEBUG: Attempting to import realistic face animator...")
+            from src.realistic_face_animator import RealisticFaceAnimator
+            self.realistic_animator = RealisticFaceAnimator()
+            print("✅ REALISTIC: Realistic face animation system initialized")
+            self.logger.info("✅ Realistic face animation system initialized")
+            
+            # Load base face for realistic system
+            try:
+                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+                if base_face_path.exists():
+                    print(f"🎭 REALISTIC: Loading base face from {base_face_path}")
+                    success = self.realistic_animator.load_base_face(str(base_face_path))
+                    if success:
+                        print("✅ REALISTIC: Base face loaded successfully")
+                        self.logger.info("✅ Realistic base face loaded successfully")
+                    else:
+                        print("❌ REALISTIC: Failed to load base face")
+                        self.logger.error("❌ Realistic failed to load base face")
+                        self.realistic_animator = None
+                else:
+                    print(f"❌ REALISTIC: Base face not found at {base_face_path}")
+                    self.logger.error(f"❌ Realistic base face not found at {base_face_path}")
+                    self.realistic_animator = None
+            except Exception as e:
+                print(f"❌ REALISTIC: Error loading base face: {e}")
+                self.logger.error(f"❌ Realistic error loading base face: {e}")
+                self.realistic_animator = None
+                
+        except Exception as e:
+            print(f"❌ REALISTIC: Failed to initialize: {e}")
+            self.logger.warning(f"Realistic initialization failed: {e}")
+            self.realistic_animator = None
+        
+        # Try to initialize Live2D animator second (Pi-friendly, no heavy dependencies)
         try:
             print("🎭 DEBUG: Attempting to import Live2D animator...")
             from src.live2d_animator import Live2DAnimator
@@ -942,8 +977,15 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try Live2D animator first (Pi-friendly, smooth animations)
-            if hasattr(self, 'live2d_animator') and self.live2d_animator:
+            # Try realistic face animator first (actually manipulates real face features)
+            if hasattr(self, 'realistic_animator') and self.realistic_animator:
+                print(f"🎭 REALISTIC: Using realistic face animation")
+                face = self.realistic_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"🎭 REALISTIC: Generated face with shape: {face.shape}")
+                return face
+            
+            # Try Live2D animator second (Pi-friendly, smooth animations)
+            elif hasattr(self, 'live2d_animator') and self.live2d_animator:
                 print(f"🎭 LIVE2D: Using Live2D-style animation")
                 face = self.live2d_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 LIVE2D: Generated face with shape: {face.shape}")
