@@ -329,8 +329,11 @@ class FaceAnimator:
                 await self.animate_speaking(phonemes)
                 return
             
-            # Calculate samples per frame
-            samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
+            # Calculate samples per frame for better audio chunking
+            if total_frames > 0:
+                samples_per_frame = len(audio_array) // total_frames
+            else:
+                samples_per_frame = 1024  # Default chunk size
             
             # Animation loop
             for frame in range(total_frames):
@@ -339,14 +342,10 @@ class FaceAnimator:
                 end_idx = min(start_idx + samples_per_frame, len(audio_array))
                 audio_chunk = audio_array[start_idx:end_idx]
                 
-                # Handle empty audio chunks
+                # Handle empty audio chunks - use silence
                 if len(audio_chunk) == 0:
-                    print(f"⚠️ AUDIO CHUNK EMPTY: Frame {frame}, using last available audio")
-                    if frame > 0:
-                        start_idx = max(0, len(audio_array) - samples_per_frame)
-                        audio_chunk = audio_array[start_idx:]
-                    else:
-                        audio_chunk = audio_array[:min(1024, len(audio_array))]
+                    print(f"⚠️ AUDIO CHUNK EMPTY: Frame {frame}, using silence")
+                    audio_chunk = np.array([], dtype=np.float32)
                 
                 # Generate frame with animated fake mouth
                 frame_image = self.simple_fake_mouth.generate_mouth_frame(audio_chunk)

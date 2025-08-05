@@ -63,19 +63,23 @@ class SimpleFakeMouth:
     def _analyze_audio_intensity(self, audio_chunk: np.ndarray) -> float:
         """Analyze audio chunk for intensity"""
         if len(audio_chunk) == 0:
-            return self.last_audio_intensity
+            # No audio = mouth should be closed
+            self.last_audio_intensity = 0.0
+            return 0.0
         
         # Calculate RMS for audio intensity
         rms = np.sqrt(np.mean(audio_chunk**2))
         
-        # Smooth the intensity to prevent jittery movement
-        self.last_audio_intensity = (self.smoothing_factor * rms + 
-                                   (1 - self.smoothing_factor) * self.last_audio_intensity)
+        # More responsive to immediate audio changes
+        if rms > 0.01:  # If there's actual audio
+            # Quick response to audio
+            self.last_audio_intensity = rms * 5.0  # Amplify the response
+        else:
+            # No audio = quickly close mouth
+            self.last_audio_intensity = max(0.0, self.last_audio_intensity - 0.1)
         
-        # Add some natural variation
-        variation = math.sin(self.frame_counter * 0.2) * 0.05
-        
-        intensity = self.last_audio_intensity + variation
+        # No artificial variation - only respond to real audio
+        intensity = self.last_audio_intensity
         return max(0.0, min(1.0, intensity))
     
     def _calculate_mouth_size(self, intensity: float) -> tuple:
@@ -84,17 +88,33 @@ class SimpleFakeMouth:
         base_w = self.base_width
         base_h = self.base_height
         
-        # Mouth opens more with higher intensity
-        open_factor = intensity * 2.0  # 0 to 2x
+        # More dramatic response to audio
+        if intensity < 0.1:
+            # Closed mouth
+            width = int(base_w * 0.3)   # Very narrow
+            height = int(base_h * 0.1)  # Very thin
+        elif intensity < 0.3:
+            # Slightly open
+            width = int(base_w * 0.6)
+            height = int(base_h * 0.3)
+        elif intensity < 0.6:
+            # Open
+            width = int(base_w * 0.9)
+            height = int(base_h * 0.7)
+        elif intensity < 0.8:
+            # Wide open
+            width = int(base_w * 1.2)
+            height = int(base_h * 1.1)
+        else:
+            # Very wide open
+            width = int(base_w * 1.5)
+            height = int(base_h * 1.4)
         
-        # Width changes less than height (more realistic)
-        width = int(base_w * (0.8 + open_factor * 0.4))   # 80% to 160%
-        height = int(base_h * (0.3 + open_factor * 1.4))  # 30% to 310%
-        
-        # Add breathing effect
-        breathing = 1.0 + self.breathing_amplitude * math.sin(self.frame_counter * self.breathing_rate)
-        width = int(width * breathing)
-        height = int(height * breathing)
+        # Add subtle breathing effect only when mouth is closed
+        if intensity < 0.1:
+            breathing = 1.0 + self.breathing_amplitude * math.sin(self.frame_counter * self.breathing_rate)
+            width = int(width * breathing)
+            height = int(height * breathing)
         
         return width, height
     
@@ -164,9 +184,9 @@ class SimpleFakeMouth:
         cv2.putText(frame, breathing_text, (10, 155), font, 0.5, (255, 255, 255), 1)
         
         # Add mouth state
-        if intensity < 0.2:
+        if intensity < 0.1:
             state_text = "State: Closed"
-        elif intensity < 0.4:
+        elif intensity < 0.3:
             state_text = "State: Slightly Open"
         elif intensity < 0.6:
             state_text = "State: Open"
@@ -175,6 +195,14 @@ class SimpleFakeMouth:
         else:
             state_text = "State: Very Wide"
         cv2.putText(frame, state_text, (10, 180), font, 0.5, (255, 255, 255), 1)
+        
+        # Add audio analysis info
+        if len(audio_chunk) > 0:
+            rms = np.sqrt(np.mean(audio_chunk**2))
+            rms_text = f"RMS: {rms:.4f}"
+        else:
+            rms_text = "RMS: 0.0000 (No Audio)"
+        cv2.putText(frame, rms_text, (10, 205), font, 0.5, (255, 255, 255), 1)
     
     def _bytes_to_audio_array(self, audio_data: bytes) -> np.ndarray:
         """Convert audio bytes to numpy array"""
