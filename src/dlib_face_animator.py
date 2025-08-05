@@ -318,34 +318,48 @@ class DlibFaceAnimator:
                 phoneme_type = "neutral"
                 print(f"🎭 REAL AUDIO: NEUTRAL (insufficient history)")
             
-            # SIMPLE GUARANTEED MOVEMENT - Force the mouth to cycle through all shapes
-            # This ensures the animation NEVER stops moving
-            cycle_position = frame_num % 8  # 8-frame cycle for frequent changes
+            # REAL AUDIO-DRIVEN LIP SYNC - Make mouth respond to actual audio content
+            # Analyze the current audio chunk to determine mouth shape
             
-            if cycle_position == 0:
-                phoneme_type = "vowel"
-                print(f"🎭 GUARANTEED: VOWEL (frame {frame_num}, cycle {cycle_position})")
-            elif cycle_position == 1:
-                phoneme_type = "consonant"
-                print(f"🎭 GUARANTEED: CONSONANT (frame {frame_num}, cycle {cycle_position})")
-            elif cycle_position == 2:
-                phoneme_type = "closed"
-                print(f"🎭 GUARANTEED: CLOSED (frame {frame_num}, cycle {cycle_position})")
-            elif cycle_position == 3:
+            # Calculate audio intensity for this specific chunk
+            if len(audio_chunk) > 0:
+                # Get RMS (Root Mean Square) - measures audio intensity
+                rms = np.sqrt(np.mean(audio_chunk**2))
+                
+                # Get peak amplitude
+                peak = np.max(np.abs(audio_chunk))
+                
+                # Get zero-crossing rate (indicates frequency content)
+                zero_crossings = np.sum(np.diff(np.sign(audio_chunk)) != 0)
+                zcr = zero_crossings / len(audio_chunk) if len(audio_chunk) > 0 else 0
+                
+                # Normalize values
+                rms_norm = min(1.0, rms * 10)  # Scale RMS to 0-1 range
+                peak_norm = min(1.0, peak * 5)  # Scale peak to 0-1 range
+                zcr_norm = min(1.0, zcr * 100)  # Scale ZCR to 0-1 range
+                
+                # Combine metrics for overall audio intensity
+                audio_intensity = (rms_norm + peak_norm + zcr_norm) / 3
+                
+                print(f"🎵 AUDIO ANALYSIS: RMS={rms_norm:.3f}, Peak={peak_norm:.3f}, ZCR={zcr_norm:.3f}, Intensity={audio_intensity:.3f}")
+                
+                # Map audio intensity to mouth shapes
+                if audio_intensity > 0.7:
+                    phoneme_type = "vowel"  # High intensity = open mouth (vowels like A, E, I, O, U)
+                    print(f"🎭 AUDIO-DRIVEN: VOWEL (intensity={audio_intensity:.3f} > 0.7)")
+                elif audio_intensity > 0.4:
+                    phoneme_type = "consonant"  # Medium intensity = moderate opening (consonants like B, P, M)
+                    print(f"🎭 AUDIO-DRIVEN: CONSONANT (intensity={audio_intensity:.3f} > 0.4)")
+                elif audio_intensity > 0.1:
+                    phoneme_type = "neutral"  # Low intensity = slight opening
+                    print(f"🎭 AUDIO-DRIVEN: NEUTRAL (intensity={audio_intensity:.3f} > 0.1)")
+                else:
+                    phoneme_type = "closed"  # Very low intensity = closed mouth
+                    print(f"🎭 AUDIO-DRIVEN: CLOSED (intensity={audio_intensity:.3f} <= 0.1)")
+            else:
+                # Fallback if no audio data
                 phoneme_type = "neutral"
-                print(f"🎭 GUARANTEED: NEUTRAL (frame {frame_num}, cycle {cycle_position})")
-            elif cycle_position == 4:
-                phoneme_type = "vowel"
-                print(f"🎭 GUARANTEED: VOWEL (frame {frame_num}, cycle {cycle_position})")
-            elif cycle_position == 5:
-                phoneme_type = "consonant"
-                print(f"🎭 GUARANTEED: CONSONANT (frame {frame_num}, cycle {cycle_position})")
-            elif cycle_position == 6:
-                phoneme_type = "closed"
-                print(f"🎭 GUARANTEED: CLOSED (frame {frame_num}, cycle {cycle_position})")
-            else:  # cycle_position == 7
-                phoneme_type = "neutral"
-                print(f"🎭 GUARANTEED: NEUTRAL (frame {frame_num}, cycle {cycle_position})")
+                print(f"🎭 AUDIO-DRIVEN: NEUTRAL (no audio data)")
             
             # FINAL DEBUG: Always log what we're returning
             print(f"🎭 RETURNING PHONEME: {phoneme_type.upper()} for frame {frame_num}")
