@@ -92,7 +92,11 @@ class Live2DAnimator:
         """Generate animated face based on audio using Live2D-style techniques"""
         try:
             if self.base_face is None:
-                return np.zeros((512, 512, 3), dtype=np.uint8)
+                # Create a fallback face instead of black screen
+                fallback_face = np.ones((512, 512, 3), dtype=np.uint8) * 128  # Gray background
+                cv2.putText(fallback_face, "Live2D: No Base Face", (50, 256), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                return fallback_face
             
             # Analyze audio for animation parameters
             audio_intensity = self._analyze_audio(audio_chunk)
@@ -111,7 +115,14 @@ class Live2DAnimator:
             
         except Exception as e:
             print(f"❌ LIVE2D ERROR: {e}")
-            return self.base_face.copy() if self.base_face is not None else np.zeros((512, 512, 3), dtype=np.uint8)
+            if self.base_face is not None:
+                return self.base_face.copy()
+            else:
+                # Create a fallback face instead of black screen
+                fallback_face = np.ones((512, 512, 3), dtype=np.uint8) * 128  # Gray background
+                cv2.putText(fallback_face, f"Live2D Error: {str(e)[:30]}", (50, 256), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+                return fallback_face
     
     def _analyze_audio(self, audio_chunk: np.ndarray) -> float:
         """Analyze audio chunk for animation intensity"""

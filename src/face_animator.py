@@ -80,6 +80,29 @@ class FaceAnimator:
             self.live2d_animator = Live2DAnimator()
             print("✅ LIVE2D: Live2D-style animation system initialized")
             self.logger.info("✅ Live2D animation system initialized")
+            
+            # Load base face for Live2D system
+            try:
+                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+                if base_face_path.exists():
+                    print(f"🎭 LIVE2D: Loading base face from {base_face_path}")
+                    success = self.live2d_animator.load_base_face(str(base_face_path))
+                    if success:
+                        print("✅ LIVE2D: Base face loaded successfully")
+                        self.logger.info("✅ Live2D base face loaded successfully")
+                    else:
+                        print("❌ LIVE2D: Failed to load base face")
+                        self.logger.error("❌ Live2D failed to load base face")
+                        self.live2d_animator = None
+                else:
+                    print(f"❌ LIVE2D: Base face not found at {base_face_path}")
+                    self.logger.error(f"❌ Live2D base face not found at {base_face_path}")
+                    self.live2d_animator = None
+            except Exception as e:
+                print(f"❌ LIVE2D: Error loading base face: {e}")
+                self.logger.error(f"❌ Live2D error loading base face: {e}")
+                self.live2d_animator = None
+                
         except Exception as e:
             print(f"❌ LIVE2D: Failed to initialize: {e}")
             self.logger.warning(f"Live2D initialization failed: {e}")
