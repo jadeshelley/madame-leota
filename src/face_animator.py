@@ -73,7 +73,37 @@ class FaceAnimator:
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize smart mouth animator first (actually responds to audio)
+        # Try to initialize direct mouth animator first (simple and effective)
+        try:
+            print("🎭 DEBUG: Attempting to import direct mouth animator...")
+            from src.direct_mouth_animator import DirectMouthAnimator
+            self.direct_mouth_animator = DirectMouthAnimator()
+            print("✅ DIRECT MOUTH: Direct mouth animation system initialized")
+            self.logger.info("✅ Direct mouth animation system initialized")
+            
+            # Load mouth shapes for direct mouth system
+            try:
+                faces_dir = FACE_ASSETS_DIR
+                print(f"🎭 DIRECT MOUTH: Loading mouth shapes from {faces_dir}")
+                success = self.direct_mouth_animator.load_mouth_shapes(faces_dir)
+                if success:
+                    print("✅ DIRECT MOUTH: Mouth shapes loaded successfully")
+                    self.logger.info("✅ Direct mouth shapes loaded successfully")
+                else:
+                    print("❌ DIRECT MOUTH: Failed to load mouth shapes")
+                    self.logger.error("❌ Direct mouth failed to load mouth shapes")
+                    self.direct_mouth_animator = None
+            except Exception as e:
+                print(f"❌ DIRECT MOUTH: Error loading mouth shapes: {e}")
+                self.logger.error(f"❌ Direct mouth error loading mouth shapes: {e}")
+                self.direct_mouth_animator = None
+                
+        except Exception as e:
+            print(f"❌ DIRECT MOUTH: Failed to initialize: {e}")
+            self.logger.warning(f"Direct mouth initialization failed: {e}")
+            self.direct_mouth_animator = None
+        
+        # Try to initialize smart mouth animator second (actually responds to audio)
         try:
             print("🎭 DEBUG: Attempting to import smart mouth animator...")
             from src.smart_mouth_animator import SmartMouthAnimator
@@ -1107,21 +1137,28 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try smart mouth animator first (actually responds to audio)
-            if hasattr(self, 'smart_mouth_animator') and self.smart_mouth_animator:
+            # Try direct mouth animator first (simple and effective)
+            if hasattr(self, 'direct_mouth_animator') and self.direct_mouth_animator:
+                print(f"🎭 DIRECT MOUTH: Using direct mouth animation")
+                face = self.direct_mouth_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"🎭 DIRECT MOUTH: Generated face with shape: {face.shape}")
+                return face
+            
+            # Try smart mouth animator second (actually responds to audio)
+            elif hasattr(self, 'smart_mouth_animator') and self.smart_mouth_animator:
                 print(f"🎭 SMART MOUTH: Using smart mouth animation")
                 face = self.smart_mouth_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 SMART MOUTH: Generated face with shape: {face.shape}")
                 return face
             
-            # Try simple morph animator second (guaranteed to work on Pi)
+            # Try simple morph animator third (guaranteed to work on Pi)
             elif hasattr(self, 'simple_morph_animator') and self.simple_morph_animator:
                 print(f"🎭 SIMPLE MORPH: Using simple morphing animation")
                 face = self.simple_morph_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 SIMPLE MORPH: Generated face with shape: {face.shape}")
                 return face
             
-            # Try OpenCV face animator third (proven solution for Pi)
+            # Try OpenCV face animator fourth (proven solution for Pi)
             elif hasattr(self, 'opencv_animator') and self.opencv_animator:
                 print(f"🎭 OPENCV: Using OpenCV face animation")
                 face = self.opencv_animator.generate_face_for_audio_chunk(audio_chunk)
