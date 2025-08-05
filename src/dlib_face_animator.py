@@ -164,7 +164,7 @@ class DlibFaceAnimator:
                 return self.base_face
             
             # Enhanced audio analysis - use audio_chunk directly (it's already a numpy array)
-            amplitude, frequency, phoneme_type = self._enhanced_audio_analysis(audio_chunk)
+            amplitude, frequency, phoneme_type, audio_intensity = self._enhanced_audio_analysis(audio_chunk)
             
             # Debug logging - use print for immediate visibility
             print(f"🎭 DLIB DEBUG: amp={amplitude:.3f}, freq={frequency:.3f}, phoneme={phoneme_type}")
@@ -182,8 +182,8 @@ class DlibFaceAnimator:
             
             # Use real mouth deformation on the actual face
             try:
-                print(f"🎭 APPLYING REAL MOUTH DEFORMATION: amplitude={amplitude:.3f}, frequency={frequency:.3f}, phoneme={phoneme_type}")
-                animated_face = self._apply_seamless_mouth_deformation(amplitude, frequency, phoneme_type)
+                print(f"🎭 APPLYING REAL MOUTH DEFORMATION: amplitude={amplitude:.3f}, frequency={frequency:.3f}, phoneme={phoneme_type}, intensity={audio_intensity:.3f}")
+                animated_face = self._apply_seamless_mouth_deformation(amplitude, frequency, phoneme_type, audio_intensity)
                 print(f"✅ REAL MOUTH DEFORMATION: Successfully applied {phoneme_type} deformation")
                 return animated_face
             except Exception as e:
@@ -202,7 +202,7 @@ class DlibFaceAnimator:
             self.logger.error(f"Error in generate_face_for_audio_chunk: {e}")
             return self.base_face
     
-    def _enhanced_audio_analysis(self, audio_array: np.ndarray) -> Tuple[float, float, str]:
+    def _enhanced_audio_analysis(self, audio_array: np.ndarray) -> Tuple[float, float, str, float]:
         """Enhanced audio analysis for better lip-sync"""
         try:
             print(f"🔍 ENHANCED AUDIO ANALYSIS: Called with {len(audio_array)} samples")
@@ -271,13 +271,14 @@ class DlibFaceAnimator:
             
             # FINAL DEBUG: Always log what we're returning
             print(f"🎭 RETURNING PHONEME: {phoneme_type.upper()} for frame {frame_num}")
-            return amplitude, frequency, phoneme_type
+            print(f"🎭 RETURNING AUDIO_INTENSITY: {audio_intensity:.3f}")
+            return amplitude, frequency, phoneme_type, audio_intensity
             
         except Exception as e:
             self.logger.error(f"Error in enhanced audio analysis: {e}")
-            return 0.5, 0.5, "neutral"
+            return 0.5, 0.5, "neutral", 0.5
     
-    def _apply_seamless_mouth_deformation(self, amplitude: float, frequency: float, phoneme_type: str) -> np.ndarray:
+    def _apply_seamless_mouth_deformation(self, amplitude: float, frequency: float, phoneme_type: str, audio_intensity: float) -> np.ndarray:
         """Apply seamless mouth deformation without visible boxes"""
         try:
             # Create a copy of the base face
@@ -291,33 +292,36 @@ class DlibFaceAnimator:
             mouth_width = np.max(mouth_points[:, 0]) - np.min(mouth_points[:, 0])
             mouth_height = np.max(mouth_points[:, 1]) - np.min(mouth_points[:, 1])
             
-            # Apply phoneme-specific deformations - MAXIMUM DRAMATIC INTENSITY
+            # Apply phoneme-specific deformations - DYNAMIC BASED ON AUDIO INTENSITY
+            # Use audio_intensity to make deformation responsive to actual audio
+            base_intensity = audio_intensity if 'audio_intensity' in locals() else 0.5
+            
             if phoneme_type == "vowel":
-                # Wide open mouth for vowels (A, E, I, O, U) - MAXIMUM DRAMATIC
-                jaw_drop = 500  # Fixed maximum jaw drop
-                width_stretch = 2.0  # Fixed maximum width
-                height_stretch = 3.0  # Fixed maximum height
-                print(f"🎭 VOWEL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
+                # Wide open mouth for vowels (A, E, I, O, U) - DYNAMIC
+                jaw_drop = 200 + (base_intensity * 300)  # 200-500 range
+                width_stretch = 1.5 + (base_intensity * 1.0)  # 1.5-2.5 range
+                height_stretch = 2.0 + (base_intensity * 2.0)  # 2.0-4.0 range
+                print(f"🎭 VOWEL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}, intensity={base_intensity:.3f}")
                 
             elif phoneme_type == "consonant":
-                # Moderate opening for consonants (B, P, M, etc.) - MAXIMUM DRAMATIC
-                jaw_drop = 300  # Fixed dramatic jaw drop
-                width_stretch = 1.5  # Fixed wide stretch
-                height_stretch = 2.0  # Fixed tall opening
-                print(f"🎭 CONSONANT DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
+                # Moderate opening for consonants (B, P, M, etc.) - DYNAMIC
+                jaw_drop = 150 + (base_intensity * 200)  # 150-350 range
+                width_stretch = 1.2 + (base_intensity * 0.8)  # 1.2-2.0 range
+                height_stretch = 1.5 + (base_intensity * 1.0)  # 1.5-2.5 range
+                print(f"🎭 CONSONANT DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}, intensity={base_intensity:.3f}")
                 
             elif phoneme_type == "closed":
-                # Nearly closed for quiet sounds - MAXIMUM DRAMATIC
-                jaw_drop = 150  # Fixed moderate jaw drop
-                width_stretch = 0.8  # Fixed moderate stretch
-                height_stretch = 1.0  # Fixed moderate height
-                print(f"🎭 CLOSED DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
+                # Nearly closed for quiet sounds - DYNAMIC
+                jaw_drop = 50 + (base_intensity * 100)  # 50-150 range
+                width_stretch = 0.7 + (base_intensity * 0.3)  # 0.7-1.0 range
+                height_stretch = 0.8 + (base_intensity * 0.4)  # 0.8-1.2 range
+                print(f"🎭 CLOSED DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}, intensity={base_intensity:.3f}")
                 
             else:  # neutral
-                jaw_drop = 200  # Fixed moderate
-                width_stretch = 1.2  # Fixed moderate
-                height_stretch = 1.5  # Fixed moderate
-                print(f"🎭 NEUTRAL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}")
+                jaw_drop = 100 + (base_intensity * 150)  # 100-250 range
+                width_stretch = 1.0 + (base_intensity * 0.5)  # 1.0-1.5 range
+                height_stretch = 1.2 + (base_intensity * 0.8)  # 1.2-2.0 range
+                print(f"🎭 NEUTRAL DEFORMATION: jaw_drop={jaw_drop:.1f}, width={width_stretch:.2f}, height={height_stretch:.2f}, intensity={base_intensity:.3f}")
             
             # Apply deformations with seamless blending
             new_mouth_points = self._calculate_deformed_mouth_points(
