@@ -177,9 +177,8 @@ class FaceAnimator:
                     self.dlib_face_animator = DlibFaceAnimator()
                     print("✅ DLIB: Facial landmark system initialized")
                     self.logger.info("✅ dlib facial landmark system initialized")
-                
-                # Load base face for dlib system
-                try:
+                    
+                    # Load base face for dlib system
                     base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
                     if base_face_path.exists():
                         print(f"🎭 DLIB: Loading base face from {base_face_path}")
@@ -195,23 +194,19 @@ class FaceAnimator:
                         print(f"❌ DLIB: Base face not found at {base_face_path}")
                         self.logger.error(f"❌ dlib base face not found at {base_face_path}")
                         self.dlib_face_animator = None
-                except Exception as e:
-                    print(f"❌ DLIB: Error loading base face: {e}")
-                    self.logger.error(f"❌ dlib error loading base face: {e}")
+                        
+                except ImportError as ie:
+                    print(f"⚠️ DLIB: Import failed - {ie}")
+                    print("⚠️ DLIB: Likely missing dlib package - run: pip install dlib")
+                    self.logger.warning(f"dlib import failed: {ie}")
                     self.dlib_face_animator = None
-                    
-            except ImportError as ie:
-                print(f"⚠️ DLIB: Import failed - {ie}")
-                print("⚠️ DLIB: Likely missing dlib package - run: pip install dlib")
-                self.logger.warning(f"dlib import failed: {ie}")
-                self.dlib_face_animator = None
-            except Exception as e:
-                print(f"⚠️ DLIB: Failed to initialize dlib system: {e}")
-                print(f"⚠️ DLIB: Error type: {type(e).__name__}")
-                import traceback
-                print(f"⚠️ DLIB: Traceback: {traceback.format_exc()}")
-                self.logger.warning(f"Could not initialize dlib system: {e}")
-                self.dlib_face_animator = None
+                except Exception as e:
+                    print(f"⚠️ DLIB: Failed to initialize dlib system: {e}")
+                    print(f"⚠️ DLIB: Error type: {type(e).__name__}")
+                    import traceback
+                    print(f"⚠️ DLIB: Traceback: {traceback.format_exc()}")
+                    self.logger.warning(f"Could not initialize dlib system: {e}")
+                    self.dlib_face_animator = None
         
         # Final fallback to audio-driven system
         if not self.wav2lip_animator and not self.dlib_face_animator:
