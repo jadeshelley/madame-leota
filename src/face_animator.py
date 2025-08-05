@@ -73,7 +73,42 @@ class FaceAnimator:
         self.audio_driven_face = None
         self.current_face = None
         
-        # Try to initialize simple realistic face animator first (actually manipulates real face features, no complex dependencies)
+        # Try to initialize OpenCV face animator first (proven solution for Pi)
+        try:
+            print("🎭 DEBUG: Attempting to import OpenCV face animator...")
+            from src.opencv_face_animator import OpenCVFaceAnimator
+            self.opencv_animator = OpenCVFaceAnimator()
+            print("✅ OPENCV: OpenCV face animation system initialized")
+            self.logger.info("✅ OpenCV face animation system initialized")
+            
+            # Load base face for OpenCV system
+            try:
+                base_face_path = Path(FACE_ASSETS_DIR) / "realistic_face.jpg"
+                if base_face_path.exists():
+                    print(f"🎭 OPENCV: Loading base face from {base_face_path}")
+                    success = self.opencv_animator.load_base_face(str(base_face_path))
+                    if success:
+                        print("✅ OPENCV: Base face loaded successfully")
+                        self.logger.info("✅ OpenCV base face loaded successfully")
+                    else:
+                        print("❌ OPENCV: Failed to load base face")
+                        self.logger.error("❌ OpenCV failed to load base face")
+                        self.opencv_animator = None
+                else:
+                    print(f"❌ OPENCV: Base face not found at {base_face_path}")
+                    self.logger.error(f"❌ OpenCV base face not found at {base_face_path}")
+                    self.opencv_animator = None
+            except Exception as e:
+                print(f"❌ OPENCV: Error loading base face: {e}")
+                self.logger.error(f"❌ OpenCV error loading base face: {e}")
+                self.opencv_animator = None
+                
+        except Exception as e:
+            print(f"❌ OPENCV: Failed to initialize: {e}")
+            self.logger.warning(f"OpenCV initialization failed: {e}")
+            self.opencv_animator = None
+        
+        # Try to initialize simple realistic face animator second (actually manipulates real face features, no complex dependencies)
         try:
             print("🎭 DEBUG: Attempting to import simple realistic face animator...")
             from src.simple_realistic_animator import SimpleRealisticAnimator
@@ -1012,14 +1047,21 @@ class FaceAnimator:
             audio_bytes = (audio_chunk * 32767).astype(np.int16).tobytes()
             duration = len(audio_chunk) / 22050
             
-            # Try simple realistic face animator first (actually manipulates real face features, no complex dependencies)
-            if hasattr(self, 'simple_realistic_animator') and self.simple_realistic_animator:
+            # Try OpenCV face animator first (proven solution for Pi)
+            if hasattr(self, 'opencv_animator') and self.opencv_animator:
+                print(f"🎭 OPENCV: Using OpenCV face animation")
+                face = self.opencv_animator.generate_face_for_audio_chunk(audio_chunk)
+                print(f"🎭 OPENCV: Generated face with shape: {face.shape}")
+                return face
+            
+            # Try simple realistic face animator second (actually manipulates real face features, no complex dependencies)
+            elif hasattr(self, 'simple_realistic_animator') and self.simple_realistic_animator:
                 print(f"🎭 SIMPLE REALISTIC: Using simple realistic face animation")
                 face = self.simple_realistic_animator.generate_face_for_audio_chunk(audio_chunk)
                 print(f"🎭 SIMPLE REALISTIC: Generated face with shape: {face.shape}")
                 return face
             
-            # Try realistic face animator second (actually manipulates real face features)
+            # Try realistic face animator third (actually manipulates real face features)
             elif hasattr(self, 'realistic_animator') and self.realistic_animator:
                 print(f"🎭 REALISTIC: Using realistic face animation")
                 face = self.realistic_animator.generate_face_for_audio_chunk(audio_chunk)
