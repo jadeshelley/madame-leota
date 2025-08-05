@@ -257,6 +257,9 @@ class DlibFaceAnimator:
                     zero_crossings = np.sum(np.diff(np.sign(audio_array)) != 0)
                     zcr = zero_crossings / len(audio_array) if len(audio_array) > 0 else 0
                     
+                    # DEBUG: Show raw audio values to understand what we're working with
+                    print(f"🎵 RAW AUDIO: RMS={rms:.6f}, Peak={peak:.6f}, ZCR={zcr:.6f}")
+                    
                     # Normalize values with better scaling for TTS audio
                     rms_norm = min(1.0, rms * 20)  # Increased scaling for TTS
                     peak_norm = min(1.0, peak * 10)  # Increased scaling for TTS
@@ -266,6 +269,32 @@ class DlibFaceAnimator:
                     audio_intensity = (rms_norm + peak_norm + zcr_norm) / 3
                     
                     print(f"🎵 AUDIO ANALYSIS: RMS={rms_norm:.3f}, Peak={peak_norm:.3f}, ZCR={zcr_norm:.3f}, Intensity={audio_intensity:.3f}")
+                    
+                    # SIMPLE FALLBACK: If audio intensity is too low, use frame-based variation
+                    if audio_intensity < 0.1:
+                        print(f"🎵 AUDIO TOO QUIET: Using frame-based variation")
+                        # Use frame number to create variation when audio is too quiet
+                        frame_variation = (frame_num % 6) / 6.0  # 6-frame cycle
+                        if frame_variation < 0.17:
+                            phoneme_type = "vowel"
+                            audio_intensity = 0.8
+                        elif frame_variation < 0.33:
+                            phoneme_type = "consonant"
+                            audio_intensity = 0.6
+                        elif frame_variation < 0.5:
+                            phoneme_type = "closed"
+                            audio_intensity = 0.2
+                        elif frame_variation < 0.67:
+                            phoneme_type = "neutral"
+                            audio_intensity = 0.4
+                        elif frame_variation < 0.83:
+                            phoneme_type = "vowel"
+                            audio_intensity = 0.7
+                        else:
+                            phoneme_type = "consonant"
+                            audio_intensity = 0.5
+                        print(f"🎵 FRAME VARIATION: phoneme={phoneme_type}, intensity={audio_intensity:.3f}")
+                        return amplitude, frequency, phoneme_type, audio_intensity
                     
                     # Map audio intensity to mouth shapes with more sensitive thresholds
                     if audio_intensity > 0.6:
