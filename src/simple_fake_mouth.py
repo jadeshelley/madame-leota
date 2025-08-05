@@ -139,7 +139,7 @@ class SimpleFakeMouth:
             x, y = self.mouth_center
             
             # Draw ONE simple mouth oval that changes size and color
-            if intensity < 0.1:  # Higher threshold for red color
+            if intensity < 0.08:  # Lower threshold for red color
                 # Closed mouth - tiny and red
                 mouth_color = (0, 0, 255)  # Bright red
                 cv2.ellipse(frame, (x, y), (width//2, height//2), 0, 0, 360, mouth_color, -1)
