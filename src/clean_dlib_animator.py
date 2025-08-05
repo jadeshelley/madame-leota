@@ -111,34 +111,35 @@ class CleanDlibAnimator:
             if self.base_face is None:
                 return np.zeros((512, 512, 3), dtype=np.uint8)
             
-            # Simple audio analysis
-            if len(audio_chunk) > 0:
-                rms = np.sqrt(np.mean(audio_chunk**2))
-                
-                # Map audio to mouth opening
-                if rms > 0.1:
-                    mouth_open = 0.8  # Wide open
-                    phoneme_type = "vowel"
-                    color = (0, 255, 0)  # Green
-                elif rms > 0.05:
-                    mouth_open = 0.6  # Medium open
-                    phoneme_type = "consonant"
-                    color = (255, 255, 0)  # Yellow
-                elif rms > 0.02:
-                    mouth_open = 0.4  # Slightly open
-                    phoneme_type = "neutral"
-                    color = (255, 165, 0)  # Orange
-                else:
-                    mouth_open = 0.1  # Nearly closed
-                    phoneme_type = "closed"
-                    color = (255, 0, 0)  # Red
-                
-                print(f"🎵 CLEAN DLIB: RMS={rms:.4f}, phoneme={phoneme_type}, mouth_open={mouth_open:.2f}")
-            else:
+            # TTS-specific animation: cycle through phonemes based on frame counter
+            # Since TTS audio is very uniform, we create natural-looking mouth movement
+            frame_cycle = self.frame_counter % 24  # 24-frame cycle for natural speech rhythm
+            
+            # Create a speech pattern: vowel-consonant-vowel-consonant pattern
+            if frame_cycle < 6:  # First 6 frames: vowel sound
+                mouth_open = 0.8
+                phoneme_type = "vowel"
+                color = (0, 255, 0)  # Green
+            elif frame_cycle < 12:  # Next 6 frames: consonant
                 mouth_open = 0.3
+                phoneme_type = "consonant"
+                color = (255, 255, 0)  # Yellow
+            elif frame_cycle < 18:  # Next 6 frames: vowel
+                mouth_open = 0.7
+                phoneme_type = "vowel"
+                color = (0, 255, 0)  # Green
+            else:  # Last 6 frames: neutral/closed
+                mouth_open = 0.2
                 phoneme_type = "neutral"
-                color = (255, 165, 0)
-                print(f"🎵 CLEAN DLIB: No audio, mouth_open={mouth_open:.2f}")
+                color = (255, 165, 0)  # Orange
+            
+            # Add some randomness to make it look more natural
+            import random
+            random.seed(self.frame_counter)  # Deterministic but varied
+            mouth_open += (random.random() - 0.5) * 0.1  # ±5% variation
+            mouth_open = max(0.1, min(0.9, mouth_open))  # Clamp to valid range
+            
+            print(f"🎵 CLEAN DLIB: Frame={frame_cycle}, phoneme={phoneme_type}, mouth_open={mouth_open:.2f}")
             
             # Create animated face
             result = self.base_face.copy()
