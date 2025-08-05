@@ -29,52 +29,67 @@ class FaceAnimator:
         self.idle_animation_running = False
         
         # Initialize animation system attributes
+        self.simple_fake_mouth = None
         self.real_mouth_manipulator = None
         self.clean_mouth_animator = None
         
-        # Initialize real mouth manipulator (actually manipulates images)
+        # Initialize simple fake mouth (draws animated mouth shape)
         try:
-            print("🎭 DEBUG: Attempting to import real mouth manipulator...")
-            from src.real_mouth_manipulator import RealMouthManipulator
-            self.real_mouth_manipulator = RealMouthManipulator()
-            print("✅ REAL MOUTH: Real mouth manipulation system initialized")
-            self.logger.info("✅ Real mouth manipulation system initialized")
-            
-            # Load base face for real mouth manipulation
-            try:
-                base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
-                if base_face_path.exists():
-                    print(f"🎭 REAL MOUTH: Loading base face from {base_face_path}")
-                    success = self.real_mouth_manipulator.load_base_face(str(base_face_path))
-                    if success:
-                        print("✅ REAL MOUTH: Base face loaded successfully")
-                        self.logger.info("✅ Real mouth base face loaded successfully")
-                    else:
-                        print("❌ REAL MOUTH: Failed to load base face")
-                        self.logger.error("❌ Real mouth failed to load base face")
-                        self.real_mouth_manipulator = None
-                else:
-                    print(f"❌ REAL MOUTH: Base face not found at {base_face_path}")
-                    self.logger.error(f"❌ Real mouth base face not found at {base_face_path}")
-                    self.real_mouth_manipulator = None
-            except Exception as e:
-                print(f"❌ REAL MOUTH: Error loading base face: {e}")
-                self.logger.error(f"❌ Real mouth error loading base face: {e}")
-                self.real_mouth_manipulator = None
+            print("🎭 DEBUG: Attempting to import simple fake mouth...")
+            from src.simple_fake_mouth import SimpleFakeMouth
+            self.simple_fake_mouth = SimpleFakeMouth()
+            print("✅ SIMPLE FAKE: Simple fake mouth system initialized")
+            self.logger.info("✅ Simple fake mouth system initialized")
                 
         except Exception as e:
-            print(f"❌ REAL MOUTH: Failed to initialize: {e}")
-            self.logger.warning(f"Real mouth initialization failed: {e}")
-            self.real_mouth_manipulator = None
+            print(f"❌ SIMPLE FAKE: Failed to initialize: {e}")
+            self.logger.warning(f"Simple fake mouth initialization failed: {e}")
+            self.simple_fake_mouth = None
         
-        # Fallback to clean mouth animator if real manipulator fails
-        if not self.real_mouth_manipulator:
+        # Fallback to real mouth manipulator if simple fake fails
+        if not self.simple_fake_mouth:
             try:
-                print("🎭 DEBUG: Attempting to import clean mouth animator as fallback...")
+                print("🎭 DEBUG: Attempting to import real mouth manipulator as fallback...")
+                from src.real_mouth_manipulator import RealMouthManipulator
+                self.real_mouth_manipulator = RealMouthManipulator()
+                print("✅ REAL MOUTH: Real mouth manipulation system initialized")
+                self.logger.info("✅ Real mouth manipulation system initialized")
+                
+                # Load base face for real mouth manipulation
+                try:
+                    base_face_path = Path(FACE_ASSETS_DIR) / "mouth_closed.png"
+                    if base_face_path.exists():
+                        print(f"🎭 REAL MOUTH: Loading base face from {base_face_path}")
+                        success = self.real_mouth_manipulator.load_base_face(str(base_face_path))
+                        if success:
+                            print("✅ REAL MOUTH: Base face loaded successfully")
+                            self.logger.info("✅ Real mouth base face loaded successfully")
+                        else:
+                            print("❌ REAL MOUTH: Failed to load base face")
+                            self.logger.error("❌ Real mouth failed to load base face")
+                            self.real_mouth_manipulator = None
+                    else:
+                        print(f"❌ REAL MOUTH: Base face not found at {base_face_path}")
+                        self.logger.error(f"❌ Real mouth base face not found at {base_face_path}")
+                        self.real_mouth_manipulator = None
+                except Exception as e:
+                    print(f"❌ REAL MOUTH: Error loading base face: {e}")
+                    self.logger.error(f"❌ Real mouth error loading base face: {e}")
+                    self.real_mouth_manipulator = None
+                    
+            except Exception as e:
+                print(f"❌ REAL MOUTH: Failed to initialize: {e}")
+                self.logger.warning(f"Real mouth initialization failed: {e}")
+                self.real_mouth_manipulator = None
+        
+        # Final fallback to clean mouth animator
+        if not self.simple_fake_mouth and not self.real_mouth_manipulator:
+            try:
+                print("🎭 DEBUG: Attempting to import clean mouth animator as final fallback...")
                 from src.clean_mouth_animator import CleanMouthAnimator
                 self.clean_mouth_animator = CleanMouthAnimator()
-                print("✅ CLEAN MOUTH: Clean mouth animation system initialized (fallback)")
-                self.logger.info("✅ Clean mouth animation system initialized (fallback)")
+                print("✅ CLEAN MOUTH: Clean mouth animation system initialized (final fallback)")
+                self.logger.info("✅ Clean mouth animation system initialized (final fallback)")
                 
                 # Load mouth shapes for clean mouth system
                 try:
@@ -104,8 +119,8 @@ class FaceAnimator:
         # Load face assets
         self._load_face_assets()
         
-        print(f"🎬 ANIMATOR: Animation system ready - real mouth: {self.real_mouth_manipulator is not None}, clean mouth: {self.clean_mouth_animator is not None}")
-        self.logger.info(f"Face animator initialized with real mouth: {self.real_mouth_manipulator is not None}, clean mouth: {self.clean_mouth_animator is not None}")
+        print(f"🎬 ANIMATOR: Animation system ready - simple fake: {self.simple_fake_mouth is not None}, real mouth: {self.real_mouth_manipulator is not None}, clean mouth: {self.clean_mouth_animator is not None}")
+        self.logger.info(f"Face animator initialized with simple fake: {self.simple_fake_mouth is not None}, real mouth: {self.real_mouth_manipulator is not None}, clean mouth: {self.clean_mouth_animator is not None}")
         
         # Animation timing
         self.animation_start_time = 0
@@ -181,12 +196,17 @@ class FaceAnimator:
             self.is_speaking = False
     
     async def animate_speaking_with_audio(self, audio_data: bytes, phonemes: List[dict]):
-        """Animate speaking using real mouth manipulator or clean mouth animator"""
+        """Animate speaking using simple fake mouth, real mouth manipulator, or clean mouth animator"""
         try:
             self.logger.info("animate_speaking_with_audio called")
             
-            # Use real mouth manipulator if available (actually manipulates images)
-            if self.real_mouth_manipulator:
+            # Use simple fake mouth if available (draws animated mouth shape)
+            if self.simple_fake_mouth:
+                await self._animate_with_simple_fake_mouth(audio_data, phonemes)
+                return
+            
+            # Fallback to real mouth manipulator if available (actually manipulates images)
+            elif self.real_mouth_manipulator:
                 await self._animate_with_real_mouth(audio_data, phonemes)
                 return
             
@@ -284,6 +304,90 @@ class FaceAnimator:
                 
         except Exception as e:
             self.logger.error(f"Clean mouth animation error: {e}")
+            await self.animate_speaking(phonemes)
+        finally:
+            self.is_speaking = False
+    
+    async def _animate_with_simple_fake_mouth(self, audio_data: bytes, phonemes: List[dict]):
+        """Animate using simple fake mouth (draws animated mouth shape)"""
+        try:
+            self.is_speaking = True
+            self.current_state = "speaking"
+            
+            # Calculate total duration and frame rate
+            total_duration = sum(p.get('duration', 0) for p in phonemes) / 1000.0
+            frame_rate = 15  # 15 FPS for smooth animation
+            frame_duration = 1.0 / frame_rate
+            total_frames = int(total_duration * frame_rate)
+            
+            self.logger.info(f"Simple fake mouth animation: {total_duration:.2f}s, {frame_rate} FPS, {total_frames} frames")
+            
+            # Convert full audio once
+            audio_array = self.simple_fake_mouth._bytes_to_audio_array(audio_data)
+            if len(audio_array) == 0:
+                self.logger.error("Failed to convert audio, falling back to phoneme animation")
+                await self.animate_speaking(phonemes)
+                return
+            
+            # Calculate samples per frame
+            samples_per_frame = len(audio_array) // total_frames if total_frames > 0 else len(audio_array)
+            
+            # Animation loop
+            for frame in range(total_frames):
+                # Extract audio chunk for this frame
+                start_idx = frame * samples_per_frame
+                end_idx = min(start_idx + samples_per_frame, len(audio_array))
+                audio_chunk = audio_array[start_idx:end_idx]
+                
+                # Handle empty audio chunks
+                if len(audio_chunk) == 0:
+                    print(f"⚠️ AUDIO CHUNK EMPTY: Frame {frame}, using last available audio")
+                    if frame > 0:
+                        start_idx = max(0, len(audio_array) - samples_per_frame)
+                        audio_chunk = audio_array[start_idx:]
+                    else:
+                        audio_chunk = audio_array[:min(1024, len(audio_array))]
+                
+                # Generate frame with animated fake mouth
+                frame_image = self.simple_fake_mouth.generate_mouth_frame(audio_chunk)
+                
+                # Debug output every 5 frames
+                if frame % 5 == 0:
+                    print(f"🎭 SIMPLE FAKE DEBUG: Frame {frame}, audio chunk: {len(audio_chunk)} samples, frame shape: {frame_image.shape}")
+                
+                # Display the frame
+                try:
+                    print(f"🖥️ DISPLAY DEBUG: Frame {frame} - About to display simple fake mouth...")
+                    
+                    # Scale frame to fit screen
+                    target_height = 600
+                    aspect_ratio = frame_image.shape[1] / frame_image.shape[0]
+                    target_width = int(target_height * aspect_ratio)
+                    
+                    scaled_frame = cv2.resize(frame_image, (target_width, target_height))
+                    
+                    # Calculate screen position to center the frame
+                    screen_width, screen_height = self.display_manager.get_screen_size()
+                    screen_center_x = (screen_width - target_width) // 2
+                    screen_center_y = (screen_height - target_height) // 2
+                    screen_position = (screen_center_x, screen_center_y)
+                    
+                    # Clear screen and display
+                    self.display_manager.clear_screen()
+                    self.display_manager.display_image(scaled_frame, screen_position)
+                    
+                    print(f"✅ DISPLAY DEBUG: Frame {frame} - Simple fake mouth displayed successfully")
+                    
+                except Exception as e:
+                    print(f"❌ DISPLAY ERROR: Frame {frame} - {e}")
+                    # Fallback to simple display
+                    self.display_manager.clear_screen()
+                    self.display_manager.display_image(frame_image, (0, 0))
+                
+                await asyncio.sleep(frame_duration)
+                
+        except Exception as e:
+            self.logger.error(f"Simple fake mouth animation error: {e}")
             await self.animate_speaking(phonemes)
         finally:
             self.is_speaking = False
@@ -547,6 +651,8 @@ class FaceAnimator:
             self.is_speaking = False
             self.idle_animation_running = False
             
+            if self.simple_fake_mouth:
+                self.simple_fake_mouth.cleanup()
             if self.real_mouth_manipulator:
                 self.real_mouth_manipulator.cleanup()
             if self.clean_mouth_animator:
